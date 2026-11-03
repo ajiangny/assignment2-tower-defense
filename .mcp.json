@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "unity": {
+      "type": "stdio",
+      "command": "/Users/anjujiang/.unity/bin/unity",
+      "args": [
+        "mcp",
+        "--project-path",
+        "/Users/anjujiang/assignment2"
+      ],
+      "env": {}
+    },
+    "blender": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "mcp-for-blender==2.2.6"
+      ],
+      "env": {
+        "DISABLE_TELEMETRY": "true",
+        "BLENDERMCP_NO_UPDATE_CHECK": "1"
+      }
+    }
+  }
+}
