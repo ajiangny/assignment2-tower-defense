@@ -1,32 +1,60 @@
+using System.Collections;
 using UnityEngine;
 
 namespace TowerDefense
 {
-    /// <summary>Spawns enemies at the start of the path at a fixed interval.</summary>
+    /// <summary>Runs one wave at a time. A wave ends when everything has spawned and no enemies remain.</summary>
     public class WaveSpawner : MonoBehaviour
     {
-        [SerializeField] private Enemy enemyPrefab;
+        [SerializeField] private WaveDefinition[] waves;
         [SerializeField] private EnemyPath path;
-        [SerializeField, Min(0.1f)] private float spawnInterval = 3f;
-        [SerializeField, Min(0f)] private float firstSpawnDelay = 5f;
 
-        private float timer;
+        private int groupsSpawning;
 
-        private void Start() => timer = firstSpawnDelay;
+        /// <summary>Number of waves started so far.</summary>
+        public int CurrentWave { get; private set; }
+        public int TotalWaves => waves.Length;
+        public bool WaveInProgress { get; private set; }
+
+        public bool StartNextWave()
+        {
+            if (WaveInProgress || CurrentWave >= waves.Length) return false;
+            if (GameManager.Instance.IsFinished) return false;
+
+            WaveDefinition wave = waves[CurrentWave];
+            CurrentWave++;
+            WaveInProgress = true;
+            groupsSpawning = wave.groups.Length;
+            foreach (WaveDefinition.Group group in wave.groups)
+                StartCoroutine(SpawnGroup(group));
+            return true;
+        }
+
+        private IEnumerator SpawnGroup(WaveDefinition.Group group)
+        {
+            yield return new WaitForSeconds(group.startDelay);
+            for (int i = 0; i < group.count; i++)
+            {
+                Enemy enemy = Instantiate(group.enemy);
+                enemy.Begin(path);
+                if (i < group.count - 1) yield return new WaitForSeconds(group.interval);
+            }
+            groupsSpawning--;
+        }
 
         private void Update()
         {
-            timer -= Time.deltaTime;
-            if (timer > 0f) return;
+            if (!WaveInProgress || groupsSpawning > 0 || Enemy.Active.Count > 0) return;
+            if (GameManager.Instance.IsFinished) return;
 
-            timer = spawnInterval;
-            Enemy enemy = Instantiate(enemyPrefab);
-            enemy.Begin(path);
+            WaveInProgress = false;
+            Economy.Instance.Add(waves[CurrentWave - 1].completionGold);
+            if (CurrentWave >= waves.Length) GameManager.Instance.Victory();
         }
 
-        public void Configure(Enemy prefab, EnemyPath enemyPath)
+        public void Configure(WaveDefinition[] waveList, EnemyPath enemyPath)
         {
-            enemyPrefab = prefab;
+            waves = waveList;
             path = enemyPath;
         }
     }

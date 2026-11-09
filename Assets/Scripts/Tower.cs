@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace TowerDefense
 {
-    /// <summary>Aims at the nearest enemy in range and fires at the rate set in its TowerStats.</summary>
+    /// <summary>Fires at the enemy closest to the exit, leading it based on its velocity.</summary>
     public class Tower : MonoBehaviour
     {
         private static readonly List<Tower> active = new List<Tower>();
@@ -17,6 +17,10 @@ namespace TowerDefense
 
         private float cooldown;
 
+        /// <summary>When false, aims at the target's current position. Used to measure predictive aim.</summary>
+        public bool PredictiveAim { get; set; } = true;
+
+        public TowerStats Stats => stats;
         public Collider[] Colliders { get; private set; }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -44,6 +48,9 @@ namespace TowerDefense
             if (target == null) return;
 
             Vector3 aimPoint = target.transform.position;
+            if (PredictiveAim)
+                Ballistics.TryIntercept(muzzle.position, aimPoint, target.Velocity, stats.projectileSpeed, out aimPoint);
+
             head.rotation = Quaternion.LookRotation(aimPoint - head.position);
 
             if (cooldown <= 0f)
@@ -55,25 +62,23 @@ namespace TowerDefense
 
         private Enemy FindTarget()
         {
-            Enemy nearest = null;
-            float bestSqr = stats.range * stats.range;
+            // One leak ends the game, so always shoot the enemy closest to getting through.
+            Enemy best = null;
+            float sqrRange = stats.range * stats.range;
             foreach (Enemy enemy in Enemy.Active)
             {
-                float sqr = (enemy.transform.position - head.position).sqrMagnitude;
-                if (sqr <= bestSqr)
-                {
-                    bestSqr = sqr;
-                    nearest = enemy;
-                }
+                bool inRange = (enemy.transform.position - head.position).sqrMagnitude <= sqrRange;
+                if (inRange && (best == null || enemy.PathProgress > best.PathProgress))
+                    best = enemy;
             }
-            return nearest;
+            return best;
         }
 
         private void Fire(Vector3 aimPoint)
         {
             Vector3 direction = (aimPoint - muzzle.position).normalized;
             Projectile shot = Instantiate(projectilePrefab, muzzle.position, Quaternion.LookRotation(direction));
-            shot.Launch(direction * stats.projectileSpeed, stats.damage);
+            shot.Launch(direction * stats.projectileSpeed, stats.damage, stats.splashRadius);
         }
     }
 }

@@ -7,6 +7,8 @@ namespace TowerDefense
     [RequireComponent(typeof(Rigidbody))]
     public class Enemy : MonoBehaviour
     {
+        private const float SplitSpawnGap = 0.25f;
+
         private static readonly List<Enemy> active = new List<Enemy>();
         public static IReadOnlyList<Enemy> Active => active;
 
@@ -17,9 +19,16 @@ namespace TowerDefense
         private EnemyPath path;
         private int nextWaypoint;
         private float hp;
+        private float holdTime;
+
+        public EnemyStats Stats => stats;
+        public float Hp => hp;
 
         /// <summary>Current world-space velocity, for predictive aiming.</summary>
         public Vector3 Velocity { get; private set; }
+
+        /// <summary>Distance walked along the path. Towers use it to target the enemy closest to the exit.</summary>
+        public float PathProgress { get; private set; }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics() => active.Clear();
@@ -37,9 +46,22 @@ namespace TowerDefense
         {
             path = enemyPath;
             nextWaypoint = 1;
-            Vector3 start = PathPoint(0);
-            transform.position = start;
-            body.position = start;
+            Place(PathPoint(0));
+        }
+
+        private void BeginFrom(Enemy parent, float delay)
+        {
+            path = parent.path;
+            nextWaypoint = parent.nextWaypoint;
+            PathProgress = parent.PathProgress;
+            holdTime = delay;
+            Place(parent.body.position);
+        }
+
+        private void Place(Vector3 position)
+        {
+            transform.position = position;
+            body.position = position;
         }
 
         private Vector3 PathPoint(int index) => path.GetPoint(index) + Vector3.up * heightAbovePath;
@@ -47,6 +69,13 @@ namespace TowerDefense
         private void FixedUpdate()
         {
             if (path == null) return;
+
+            if (holdTime > 0f)
+            {
+                holdTime -= Time.fixedDeltaTime;
+                Velocity = Vector3.zero;
+                return;
+            }
 
             float remaining = stats.speed * Time.fixedDeltaTime;
             Vector3 position = body.position;
@@ -62,11 +91,13 @@ namespace TowerDefense
                 {
                     direction = toTarget / distance;
                     position += direction * remaining;
+                    PathProgress += remaining;
                     remaining = 0f;
                 }
                 else
                 {
                     position = target;
+                    PathProgress += distance;
                     remaining -= distance;
                     nextWaypoint++;
                 }
@@ -85,12 +116,19 @@ namespace TowerDefense
         public void TakeDamage(float amount)
         {
             if (hp <= 0f) return;
-            hp -= amount;
-            if (hp <= 0f)
+            hp -= Mathf.Max(amount - stats.armor, 1f);
+            if (hp > 0f) return;
+
+            if (GameManager.Instance != null) GameManager.Instance.RegisterKill();
+            if (Economy.Instance != null) Economy.Instance.Add(stats.goldReward);
+
+            for (int i = 0; i < stats.splitCount; i++)
             {
-                if (GameManager.Instance != null) GameManager.Instance.RegisterKill();
-                Destroy(gameObject);
+                Enemy child = Instantiate(stats.splitInto, body.position, Quaternion.identity);
+                child.BeginFrom(this, i * SplitSpawnGap);
             }
+
+            Destroy(gameObject);
         }
     }
 }

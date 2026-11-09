@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 17c916a806b8342bab79533be9e9272e, type: 3}
+  m_Name: Wave14
+  m_EditorClassIdentifier: Assembly-CSharp::TowerDefense.WaveDefinition
+  groups:
+  - enemy: {fileID: 838753843823191975, guid: e3b0e244a767b417085220a54427d1ea, type: 3}
+    count: 18
+    interval: 0.85263157
+    startDelay: 0
+  - enemy: {fileID: 1572071835245449722, guid: faaa12124a07f4f609374201084f4b33, type: 3}
+    count: 13
+    interval: 0.85263157
+    startDelay: 3
+  - enemy: {fileID: 2773453070323937445, guid: cc0ca3fd2d9ec49f9986f935f9f6cae1, type: 3}
+    count: 4
+    interval: 1.7052631
+    startDelay: 6
+  - enemy: {fileID: 5376448802618995876, guid: bbab457df38ea444eb03beb8642b8802, type: 3}
+    count: 4
+    interval: 1.7052631
+    startDelay: 8
+  - enemy: {fileID: 6727953597167758195, guid: dd6e66f660e4c444e9e1155ef1190892, type: 3}
+    count: 3
+    interval: 1.7052631
+    startDelay: 10
+  completionGold: 180

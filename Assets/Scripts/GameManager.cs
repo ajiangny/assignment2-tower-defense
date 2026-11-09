@@ -4,15 +4,17 @@ using UnityEngine.SceneManagement;
 
 namespace TowerDefense
 {
-    /// <summary>Tracks game state. An enemy finishing the path ends the game; R restarts.</summary>
+    public enum GameResult { Playing, Lost, Won }
+
+    /// <summary>Tracks the outcome. An enemy finishing the path ends the game; R restarts afterwards.</summary>
     public class GameManager : MonoBehaviour
     {
         public static GameManager Instance { get; private set; }
 
-        public bool IsGameOver { get; private set; }
+        public GameResult Result { get; private set; } = GameResult.Playing;
+        public bool IsFinished => Result != GameResult.Playing;
         public int Kills { get; private set; }
-
-        private GUIStyle labelStyle;
+        public bool FastForward { get; private set; }
 
         private void Awake()
         {
@@ -28,35 +30,29 @@ namespace TowerDefense
         private void Update()
         {
             Keyboard keyboard = Keyboard.current;
-            if (IsGameOver && keyboard != null && keyboard.rKey.wasPressedThisFrame)
-                SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+            if (IsFinished && keyboard != null && keyboard.rKey.wasPressedThisFrame) Restart();
         }
+
+        public void Restart() => SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
 
         public void RegisterKill() => Kills++;
 
-        public void GameOver()
+        public void ToggleFastForward()
         {
-            if (IsGameOver) return;
-            IsGameOver = true;
-            Time.timeScale = 0f;
+            if (IsFinished) return;
+            FastForward = !FastForward;
+            Time.timeScale = FastForward ? 2f : 1f;
         }
 
-        // Minimal placeholder UI for the skeleton.
-        private void OnGUI()
+        public void GameOver() => Finish(GameResult.Lost);
+
+        public void Victory() => Finish(GameResult.Won);
+
+        private void Finish(GameResult result)
         {
-            if (labelStyle == null)
-            {
-                labelStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 36 };
-                labelStyle.normal.textColor = Color.white;
-            }
-
-            GUI.Label(new Rect(16, 8, 300, 40), $"Destroyed: {Kills}");
-
-            if (IsGameOver)
-            {
-                GUI.Label(new Rect(0, 0, Screen.width, Screen.height),
-                    $"GAME OVER\nEnemies destroyed: {Kills}\nPress R to restart", labelStyle);
-            }
+            if (IsFinished) return;
+            Result = result;
+            Time.timeScale = 0f;
         }
     }
 }
