@@ -21,6 +21,9 @@ namespace TowerDefense.EditorTools
         private const string PropDir = "Assets/Models/Props";
         private const string TowerModelDir = "Assets/Models/Towers";
         private const string TowerRiggedDir = "Assets/Models/Towers/Rigged";
+        private const string HeroModelDir = "Assets/Models/Hero";
+        private static readonly string[] HeroLevels = { "HeroL1", "HeroL5", "HeroL10" };
+        private const float HeroHeight = 1.5f;
 
         /// <summary>A weapon held rigidly in a hand. Rotation and offset are relative to the character, set at the rest pose.</summary>
         private struct HandProp
@@ -41,6 +44,9 @@ namespace TowerDefense.EditorTools
             new HandProp("KnightBastion", "Axe", "RightHand", new Vector3(20f, 0f, 0f), Vector3.zero),
             new HandProp("ArcherTower", "Bow", "LeftHand", new Vector3(0f, 90f, 0f), Vector3.zero),
             new HandProp("MageSpire", "Staff", "RightHand", new Vector3(5f, 0f, 0f), Vector3.zero),
+            new HandProp("HeroL1", "HeroSword", "RightHand", new Vector3(55f, 0f, 0f), Vector3.zero),
+            new HandProp("HeroL5", "HeroSword", "RightHand", new Vector3(55f, 0f, 0f), Vector3.zero),
+            new HandProp("HeroL10", "HeroSword", "RightHand", new Vector3(55f, 0f, 0f), Vector3.zero),
         };
         private const int WaveCount = 20;
 
@@ -81,6 +87,8 @@ namespace TowerDefense.EditorTools
             Enemy bloater = BuildEnemy("Plague Bloater", 2f, 15f, 0f, 8, 1.5f, new Color(0.6f, 0.55f, 0.15f), runner, 3);
             Enemy revenant = BuildEnemy("Armored Revenant", 2.2f, 30f, 2f, 15, 1.2f, new Color(0.5f, 0.35f, 0.3f), null, 0);
             Enemy king = BuildEnemy("Zombie King", 1.2f, 600f, 0f, 200, 2.5f, new Color(0.5f, 0.1f, 0.5f), null, 0);
+
+            BuildHeroPrefab();
 
             WaveDefinition[] waves = BuildWaves(shambler, runner, clubber, bloater, revenant, king);
 
@@ -405,7 +413,7 @@ namespace TowerDefense.EditorTools
         }
 
         // Clip names the Blender scripts export. Walk and Idle loop; Hit and Attack return to them when done.
-        private static readonly string[] ClipStates = { "Walk", "Idle", "Hit", "Attack", "Die" };
+        private static readonly string[] ClipStates = { "Walk", "Idle", "Hit", "Attack", "LevelUp", "Die" };
 
         private static AnimatorController GetOrCreateUnitController(string assetName, string modelPath)
         {
@@ -433,7 +441,7 @@ namespace TowerDefense.EditorTools
             if (home != null)
             {
                 machine.defaultState = home;
-                foreach (string oneShot in new[] { "Hit", "Attack" })
+                foreach (string oneShot in new[] { "Hit", "Attack", "LevelUp" })
                 {
                     if (!states.TryGetValue(oneShot, out AnimatorState shot)) continue;
                     AnimatorStateTransition back = shot.AddTransition(home);
@@ -612,6 +620,42 @@ namespace TowerDefense.EditorTools
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
             return SavePrefab<Tower>(root, assetName);
+        }
+
+        /// <summary>
+        /// Hero prefab with one child per armour level (1, 5, 10). Level 1 is shown; hero code switches them.
+        /// Not placed in the scene yet: the hero's gameplay isn't built.
+        /// </summary>
+        private static void BuildHeroPrefab()
+        {
+            GameObject root = new GameObject("Hero");
+            bool any = false;
+            foreach (string level in HeroLevels)
+            {
+                string path = $"{HeroModelDir}/{level}.fbx";
+                if (!ConfigureRiggedImport(path)) continue;
+                GameObject unit = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(path));
+                unit.name = level;
+                unit.transform.SetParent(root.transform, false);
+                Material material = GetOrCreateZombieMaterial(level, HeroModelDir);
+                foreach (Renderer r in unit.GetComponentsInChildren<Renderer>()) r.sharedMaterial = material;
+                float current = ModelHeight(unit);
+                if (current > 0.01f) unit.transform.localScale *= HeroHeight / current;
+                float feet = ModelBounds(unit).min.y - unit.transform.position.y;
+                unit.transform.localPosition = new Vector3(0f, -feet, 0f);
+                Animator animator = unit.GetComponent<Animator>();
+                if (animator != null)
+                {
+                    animator.runtimeAnimatorController = GetOrCreateUnitController(level, path);
+                    animator.applyRootMotion = false;
+                }
+                AttachHandProps(level, unit.transform);
+                unit.SetActive(!any);
+                any = true;
+            }
+
+            if (any) PrefabUtility.SaveAsPrefabAsset(root, $"{PrefabDir}/Hero.prefab");
+            Object.DestroyImmediate(root);
         }
 
         private static T SavePrefab<T>(GameObject instance, string name) where T : Component
