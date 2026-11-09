@@ -135,3 +135,12 @@ crashlytics-build.properties
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Art working files (generated models, rigs, Blender files, reference images).
+# Large and regenerable, and the reference images aren't ours to publish.
+# Keep only the plan and the pipeline scripts.
+/ArtSource/**
+!/ArtSource/**/
+!/ArtSource/GAME_PLAN.md
+!/ArtSource/rigging/*.py
+!/ArtSource/tools/*

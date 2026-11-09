@@ -14,12 +14,20 @@ namespace TowerDefense
 
         [SerializeField] private EnemyStats stats;
         [SerializeField] private float heightAbovePath = 0.5f;
+        [Tooltip("Degrees per second the enemy turns to face where it is walking.")]
+        [SerializeField] private float turnSpeed = 540f;
 
         private Rigidbody body;
         private EnemyPath path;
         private int nextWaypoint;
         private float hp;
         private float holdTime;
+
+        /// <summary>Raised on every hit that doesn't kill.</summary>
+        public event System.Action Damaged;
+
+        /// <summary>Raised once, just before the enemy is destroyed by damage.</summary>
+        public event System.Action Died;
 
         public EnemyStats Stats => stats;
         public float Hp => hp;
@@ -47,6 +55,13 @@ namespace TowerDefense
             path = enemyPath;
             nextWaypoint = 1;
             Place(PathPoint(0));
+            Vector3 heading = PathPoint(1) - PathPoint(0);
+            heading.y = 0f;
+            if (heading.sqrMagnitude > 0.0001f)
+            {
+                transform.rotation = Quaternion.LookRotation(heading);
+                body.rotation = transform.rotation;
+            }
         }
 
         private void BeginFrom(Enemy parent, float delay)
@@ -56,6 +71,8 @@ namespace TowerDefense
             PathProgress = parent.PathProgress;
             holdTime = delay;
             Place(parent.body.position);
+            transform.rotation = parent.body.rotation;
+            body.rotation = parent.body.rotation;
         }
 
         private void Place(Vector3 position)
@@ -106,6 +123,13 @@ namespace TowerDefense
             Velocity = direction * stats.speed;
             body.MovePosition(position);
 
+            Vector3 flat = new Vector3(direction.x, 0f, direction.z);
+            if (flat.sqrMagnitude > 0.0001f)
+            {
+                Quaternion facing = Quaternion.LookRotation(flat);
+                body.MoveRotation(Quaternion.RotateTowards(body.rotation, facing, turnSpeed * Time.fixedDeltaTime));
+            }
+
             if (nextWaypoint >= path.Count)
             {
                 if (GameManager.Instance != null) GameManager.Instance.GameOver();
@@ -117,7 +141,11 @@ namespace TowerDefense
         {
             if (hp <= 0f) return;
             hp -= Mathf.Max(amount - stats.armor, 1f);
-            if (hp > 0f) return;
+            if (hp > 0f)
+            {
+                Damaged?.Invoke();
+                return;
+            }
 
             if (GameManager.Instance != null) GameManager.Instance.RegisterKill();
             if (Economy.Instance != null) Economy.Instance.Add(stats.goldReward);
@@ -128,6 +156,7 @@ namespace TowerDefense
                 child.BeginFrom(this, i * SplitSpawnGap);
             }
 
+            Died?.Invoke();
             Destroy(gameObject);
         }
     }

@@ -18,8 +18,8 @@ namespace TowerDefense
         [SerializeField] private Collider ground;
         [SerializeField] private EnemyPath path;
         [SerializeField, Min(1)] private int maxTowers = 10;
-        [SerializeField] private float pathClearance = 2f;
-        [SerializeField] private float towerSpacing = 2f;
+        [SerializeField] private float pathClearance = 2.8f;
+        [SerializeField] private float towerSpacing = 3.4f;
         [SerializeField] private Material previewMaterial;
 
         private Transform preview;

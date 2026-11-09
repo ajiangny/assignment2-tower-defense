@@ -14,8 +14,16 @@ namespace TowerDefense
         [SerializeField] private Transform column;
         [SerializeField] private Transform head;
         [SerializeField] private Transform muzzle;
+        [Tooltip("Stretch the column to the stats height. Off for modelled structures, which are built to height.")]
+        [SerializeField] private bool sizeColumnFromStats = true;
+        [Tooltip("Animator state played on every shot, when the unit has an Animator.")]
+        [SerializeField] private string attackState = "Attack";
 
         private float cooldown;
+        private Animator unitAnimator;
+        private Transform unit;
+        private Vector3 unitRestPosition;
+        private float recoil;
 
         /// <summary>When false, aims at the target's current position. Used to measure predictive aim.</summary>
         public bool PredictiveAim { get; set; } = true;
@@ -28,11 +36,20 @@ namespace TowerDefense
 
         private void Awake()
         {
-            // Build the tower to the height in its stats. Unity's cylinder is 2 units tall at scale 1.
-            column.localPosition = Vector3.up * (stats.height / 2f);
-            Vector3 columnScale = column.localScale;
-            column.localScale = new Vector3(columnScale.x, stats.height / 2f, columnScale.z);
+            if (sizeColumnFromStats)
+            {
+                // Build the tower to the height in its stats. Unity's cylinder is 2 units tall at scale 1.
+                column.localPosition = Vector3.up * (stats.height / 2f);
+                Vector3 columnScale = column.localScale;
+                column.localScale = new Vector3(columnScale.x, stats.height / 2f, columnScale.z);
+            }
             head.localPosition = Vector3.up * stats.height;
+            unitAnimator = head.GetComponentInChildren<Animator>();
+            if (unitAnimator != null)
+            {
+                unit = unitAnimator.transform;
+                unitRestPosition = unit.localPosition;
+            }
 
             Colliders = GetComponentsInChildren<Collider>();
         }
@@ -44,6 +61,13 @@ namespace TowerDefense
         {
             cooldown -= Time.deltaTime;
 
+            // Small kick back on every shot so even towers without an attack clip read as firing.
+            if (unit != null)
+            {
+                recoil = Mathf.MoveTowards(recoil, 0f, Time.deltaTime * 6f);
+                unit.localPosition = unitRestPosition + Vector3.back * (0.12f * recoil * recoil);
+            }
+
             Enemy target = FindTarget();
             if (target == null) return;
 
@@ -51,7 +75,10 @@ namespace TowerDefense
             if (PredictiveAim)
                 Ballistics.TryIntercept(muzzle.position, aimPoint, target.Velocity, stats.projectileSpeed, out aimPoint);
 
-            head.rotation = Quaternion.LookRotation(aimPoint - head.position);
+            // The unit turns to face its target but stays upright; the shot itself is aimed in 3D.
+            Vector3 facing = aimPoint - head.position;
+            facing.y = 0f;
+            if (facing.sqrMagnitude > 0.0001f) head.rotation = Quaternion.LookRotation(facing);
 
             if (cooldown <= 0f)
             {
@@ -77,6 +104,9 @@ namespace TowerDefense
         private void Fire(Vector3 aimPoint)
         {
             Vector3 direction = (aimPoint - muzzle.position).normalized;
+            if (unitAnimator != null && unitAnimator.HasState(0, Animator.StringToHash(attackState)))
+                unitAnimator.Play(attackState, 0, 0f);
+            recoil = 1f;
             Projectile shot = Instantiate(projectilePrefab, muzzle.position, Quaternion.LookRotation(direction));
             shot.Launch(direction * stats.projectileSpeed, stats.damage, stats.splashRadius);
         }
