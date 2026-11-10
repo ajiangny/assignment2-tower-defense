@@ -4,7 +4,7 @@ using UnityEngine.InputSystem;
 
 namespace TowerDefense
 {
-    public enum PlacementResult { Placed, NoTowerSelected, GameFinished, TowerLimitReached, NotEnoughGold, OnPath, TooCloseToTower }
+    public enum PlacementResult { Placed, NoTowerSelected, GameFinished, TowerLimitReached, NotEnoughGold, OnPath, TooCloseToTower, Blocked }
 
     /// <summary>Choose a tower with 1/2/3 or a HUD button, then left-click open ground to build it.</summary>
     public class TowerPlacer : MonoBehaviour
@@ -21,6 +21,10 @@ namespace TowerDefense
         [SerializeField] private float pathClearance = 2.8f;
         [SerializeField] private float towerSpacing = 3.4f;
         [SerializeField] private Material previewMaterial;
+        [Tooltip("How far a tower's centre must stay from houses, walls and other scenery.")]
+        [SerializeField] private float sceneryClearance = 1.6f;
+
+        private readonly Collider[] overlap = new Collider[16];
 
         private Transform preview;
         private Renderer previewRenderer;
@@ -96,6 +100,11 @@ namespace TowerDefense
             {
                 if (Vector3.Distance(tower.transform.position, point) < towerSpacing)
                     return PlacementResult.TooCloseToTower;
+            }
+            int hits = Physics.OverlapSphereNonAlloc(point + Vector3.up, sceneryClearance, overlap, ~0, QueryTriggerInteraction.Collide);
+            for (int i = 0; i < hits; i++)
+            {
+                if (overlap[i].GetComponentInParent<Scenery>() != null) return PlacementResult.Blocked;
             }
             return PlacementResult.Placed;
         }

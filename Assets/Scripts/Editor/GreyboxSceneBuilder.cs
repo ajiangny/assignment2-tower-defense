@@ -4,6 +4,8 @@ using UnityEditor;
 using UnityEditor.Animations;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 
 namespace TowerDefense.EditorTools
@@ -22,6 +24,8 @@ namespace TowerDefense.EditorTools
         private const string TowerModelDir = "Assets/Models/Towers";
         private const string TowerRiggedDir = "Assets/Models/Towers/Rigged";
         private const string HeroModelDir = "Assets/Models/Hero";
+        private const string TownDir = "Assets/Models/Town";
+        private const string GroundTextureDir = "Assets/Textures/Ground";
         private static readonly string[] HeroLevels = { "HeroL1", "HeroL5", "HeroL10" };
         private const float HeroHeight = 1.5f;
 
@@ -50,15 +54,23 @@ namespace TowerDefense.EditorTools
         };
         private const int WaveCount = 20;
 
-        private static readonly Vector3[] PathPoints =
+        // The road's corners, from the graveyard (off-screen left) to the town gate (right).
+        // Corners are rounded by RoundCorners, so zombies walk smooth bends.
+        private static readonly Vector3[] RoadCorners =
         {
-            new Vector3(-18f, 0f, -12f),
-            new Vector3(-6f, 0f, -12f),
-            new Vector3(-6f, 0f, 8f),
-            new Vector3(6f, 0f, 8f),
-            new Vector3(6f, 0f, -8f),
-            new Vector3(18f, 0f, -8f),
+            new Vector3(-24f, 0f, 9f),
+            new Vector3(-12f, 0f, 9f),
+            new Vector3(-12f, 0f, -8f),
+            new Vector3(-1f, 0f, -8f),
+            new Vector3(-1f, 0f, 7f),
+            new Vector3(9f, 0f, 7f),
+            new Vector3(9f, 0f, -5f),
+            new Vector3(20f, 0f, -5f),
         };
+        private const float RoadCornerRadius = 3f;
+        private const float RoadWidth = 2.6f;
+
+        private static readonly Vector3[] PathPoints = RoundCorners(RoadCorners, RoadCornerRadius, 5);
 
         [MenuItem("Tower Defense/Build Greybox Scene")]
         public static void Build()
@@ -96,10 +108,14 @@ namespace TowerDefense.EditorTools
 
             GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
             ground.name = "Ground";
-            ground.transform.localScale = new Vector3(4.4f, 1f, 3.2f);
+            ground.transform.localScale = new Vector3(9f, 1f, 7f);
             ground.GetComponent<Renderer>().sharedMaterial = groundMat;
+            ApplyGroundTexture(groundMat, "Grass", new Vector2(7.5f, 5.8f));
 
+            ApplyGroundTexture(pathMat, "Cobblestone", Vector2.one);
             EnemyPath path = BuildPath(pathMat);
+            BuildTown();
+            BuildAtmosphere();
 
             GameObject systems = new GameObject("Game");
             systems.AddComponent<GameManager>();
@@ -111,8 +127,10 @@ namespace TowerDefense.EditorTools
             systems.AddComponent<Hud>().Configure(placer, spawner);
 
             Camera camera = Camera.main;
-            camera.transform.position = new Vector3(0f, 34f, -24f);
-            camera.transform.rotation = Quaternion.Euler(55f, 0f, 0f);
+            camera.transform.position = new Vector3(-1f, 30f, -27f);
+            camera.transform.rotation = Quaternion.Euler(52f, 0f, 0f);
+            camera.fieldOfView = 50f;
+            camera.GetUniversalAdditionalCameraData().renderPostProcessing = true;
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -135,20 +153,11 @@ namespace TowerDefense.EditorTools
             }
             path.SetWaypoints(waypoints);
 
-            // Flat strips with no colliders, so they don't intercept placement clicks or shots.
-            for (int i = 0; i < PathPoints.Length - 1; i++)
-            {
-                Vector3 from = PathPoints[i];
-                Vector3 to = PathPoints[i + 1];
-                GameObject strip = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                strip.name = $"Path Strip {i}";
-                Object.DestroyImmediate(strip.GetComponent<Collider>());
-                strip.transform.SetParent(root.transform);
-                strip.transform.position = (from + to) / 2f + Vector3.up * 0.02f;
-                strip.transform.rotation = Quaternion.LookRotation(to - from);
-                strip.transform.localScale = new Vector3(2f, 0.02f, Vector3.Distance(from, to) + 2f);
-                strip.GetComponent<Renderer>().sharedMaterial = material;
-            }
+            // One cobblestone ribbon along the rounded path. No collider, so it doesn't intercept clicks or shots.
+            GameObject road = new GameObject("Road");
+            road.transform.SetParent(root.transform);
+            road.AddComponent<MeshFilter>().sharedMesh = BuildRoadMesh(PathPoints, RoadWidth);
+            road.AddComponent<MeshRenderer>().sharedMaterial = material;
             return path;
         }
 
@@ -415,6 +424,18 @@ namespace TowerDefense.EditorTools
         // Clip names the Blender scripts export. Walk and Idle loop; Hit and Attack return to them when done.
         private static readonly string[] ClipStates = { "Walk", "Idle", "Hit", "Attack", "LevelUp", "Die" };
 
+        private static bool ControllerMatches(AnimatorStateMachine machine, Dictionary<string, AnimationClip> clips)
+        {
+            int expected = 0;
+            foreach (string state in ClipStates) if (clips.ContainsKey(state)) expected++;
+            if (expected == 0 || machine.states.Length != expected || machine.defaultState == null) return false;
+            foreach (ChildAnimatorState child in machine.states)
+            {
+                if (!clips.TryGetValue(child.state.name, out AnimationClip clip) || child.state.motion != clip) return false;
+            }
+            return true;
+        }
+
         private static AnimatorController GetOrCreateUnitController(string assetName, string modelPath)
         {
             // Reuse the asset so its GUID (and every prefab reference to it) stays stable across rebuilds.
@@ -422,11 +443,14 @@ namespace TowerDefense.EditorTools
             AnimatorController controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(path);
             if (controller == null) controller = AnimatorController.CreateAnimatorControllerAtPath(path);
             AnimatorStateMachine machine = controller.layers[0].stateMachine;
-            foreach (ChildAnimatorState child in machine.states) machine.RemoveState(child.state);
 
             var clips = new Dictionary<string, AnimationClip>();
             foreach (Object asset in AssetDatabase.LoadAllAssetsAtPath(modelPath))
                 if (asset is AnimationClip clip && !clip.name.StartsWith("__preview")) clips[clip.name] = clip;
+
+            // Leave an up-to-date controller untouched so rebuilds don't rewrite it.
+            if (ControllerMatches(machine, clips)) return controller;
+            foreach (ChildAnimatorState child in machine.states) machine.RemoveState(child.state);
 
             var states = new Dictionary<string, AnimatorState>();
             foreach (string state in ClipStates)
@@ -656,6 +680,227 @@ namespace TowerDefense.EditorTools
 
             if (any) PrefabUtility.SaveAsPrefabAsset(root, $"{PrefabDir}/Hero.prefab");
             Object.DestroyImmediate(root);
+        }
+
+        /// <summary>Replaces each interior corner with a circular arc of the given radius.</summary>
+        private static Vector3[] RoundCorners(Vector3[] corners, float radius, int arcSteps)
+        {
+            var points = new List<Vector3> { corners[0] };
+            for (int i = 1; i < corners.Length - 1; i++)
+            {
+                Vector3 inDir = (corners[i] - corners[i - 1]).normalized;
+                Vector3 outDir = (corners[i + 1] - corners[i]).normalized;
+                float r = Mathf.Min(radius, Vector3.Distance(corners[i], corners[i - 1]) / 2f, Vector3.Distance(corners[i], corners[i + 1]) / 2f);
+                Vector3 a = corners[i] - inDir * r;
+                Vector3 b = corners[i] + outDir * r;
+                // Quadratic Bezier through the corner: close to a circular arc for right angles.
+                for (int k = 0; k <= arcSteps; k++)
+                {
+                    float t = k / (float)arcSteps;
+                    points.Add((1 - t) * (1 - t) * a + 2 * (1 - t) * t * corners[i] + t * t * b);
+                }
+            }
+            points.Add(corners[corners.Length - 1]);
+            return points.ToArray();
+        }
+
+        private static Mesh BuildRoadMesh(Vector3[] points, float width)
+        {
+            var vertices = new List<Vector3>();
+            var uvs = new List<Vector2>();
+            var triangles = new List<int>();
+            float distance = 0f;
+            for (int i = 0; i < points.Length; i++)
+            {
+                Vector3 forward = i == 0 ? points[1] - points[0]
+                    : i == points.Length - 1 ? points[i] - points[i - 1]
+                    : (points[i + 1] - points[i - 1]);
+                forward.y = 0f;
+                Vector3 side = Vector3.Cross(Vector3.up, forward.normalized) * (width / 2f);
+                if (i > 0) distance += Vector3.Distance(points[i], points[i - 1]);
+                Vector3 lift = Vector3.up * 0.03f;
+                vertices.Add(points[i] - side + lift);
+                vertices.Add(points[i] + side + lift);
+                float v = distance / width;
+                uvs.Add(new Vector2(0f, v));
+                uvs.Add(new Vector2(1f, v));
+                if (i == 0) continue;
+                int b = vertices.Count - 4;
+                triangles.AddRange(new[] { b, b + 2, b + 1, b + 1, b + 2, b + 3 });
+            }
+            var mesh = new Mesh { name = "Road" };
+            mesh.SetVertices(vertices);
+            mesh.SetUVs(0, uvs);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateTangents();
+            mesh.RecalculateBounds();
+            string path = "Assets/Models/Town/Road.asset";
+            Directory.CreateDirectory("Assets/Models/Town");
+            AssetDatabase.DeleteAsset(path);
+            AssetDatabase.CreateAsset(mesh, path);
+            return mesh;
+        }
+
+        private static void ApplyGroundTexture(Material material, string name, Vector2 tiling)
+        {
+            Texture2D baseMap = LoadTexture($"{GroundTextureDir}/{name}_BaseColor.jpg", false);
+            if (baseMap == null) return;
+            material.SetTexture("_BaseMap", baseMap);
+            material.SetTextureScale("_BaseMap", tiling);
+            material.SetColor("_BaseColor", Color.white);
+            Texture2D normal = LoadTexture($"{GroundTextureDir}/{name}_Normal.jpg", true);
+            if (normal != null)
+            {
+                material.SetTexture("_BumpMap", normal);
+                material.SetTextureScale("_BumpMap", tiling);
+                material.EnableKeyword("_NORMALMAP");
+            }
+            material.SetFloat("_Smoothness", 0.1f);
+            EditorUtility.SetDirty(material);
+        }
+
+        /// <summary>A town decoration: model name in Assets/Models/Town, ground position, yaw, and size multiplier.</summary>
+        private struct TownPiece
+        {
+            public string Model; public float X, Z, Yaw, Scale;
+            public TownPiece(string model, float x, float z, float yaw, float scale = 1f)
+            { Model = model; X = x; Z = z; Yaw = yaw; Scale = scale; }
+        }
+
+        // Models face +Z at yaw 0. Houses and walls sit on the edges; the pockets inside the bends stay open for towers.
+        private static readonly TownPiece[] TownLayout =
+        {
+            // Graveyard where the zombies rise (top-left). The road starts inside it and leaves through the gate.
+            new TownPiece("CemeteryGate", -17.5f, 9f, 90f),
+            new TownPiece("CemeteryFence", -23f, 13.8f, 0f), new TownPiece("CemeteryFence", -23f, 4.2f, 180f),
+            new TownPiece("CemeteryFence", -26.2f, 9f, 90f),
+            new TownPiece("Gravestones", -24f, 12.2f, 170f, 0.75f), new TownPiece("Gravestones", -20.5f, 12.1f, 200f, 0.7f),
+            new TownPiece("Gravestones", -24f, 5.9f, 10f, 0.75f), new TownPiece("Gravestones", -20.5f, 5.8f, -15f, 0.7f),
+            new TownPiece("DeadTree", -14.5f, 14f, 30f), new TownPiece("DeadTree", -24f, -1.5f, 200f, 1.15f),
+
+            // Ruined houses around the edges.
+            new TownPiece("HouseTimber", -5.5f, 13.5f, 180f), new TownPiece("HouseStone", 3.5f, 12.8f, 170f),
+            new TownPiece("HouseTimber", 14.5f, 10.5f, 200f, 0.9f),
+            new TownPiece("HouseStone", -19f, -11.5f, 160f), new TownPiece("HouseTimber", 3.5f, -14.5f, 190f, 0.95f),
+            new TownPiece("HouseStone", 12.5f, -12.5f, 200f, 0.9f),
+
+            // The broken town gate the zombies must not reach, with the wall either side.
+            new TownPiece("TownGate", 18f, -5f, -90f),
+            new TownPiece("TownWall", 18f, -11.5f, 90f), new TownPiece("TownWall", 18f, 1.5f, 90f),
+            new TownPiece("TownWall", 18f, 8f, 90f, 0.95f),
+
+            // Street clutter beside the road.
+            new TownPiece("Well", 4f, 1f, 30f),
+            new TownPiece("Cart", -7f, -12f, 75f), new TownPiece("Barrels", 13f, -1.5f, 40f),
+            new TownPiece("Barrels", -15.5f, 1.5f, -30f, 0.9f), new TownPiece("Cart", 13.5f, 4.5f, -120f, 0.9f),
+            new TownPiece("DeadTree", -18f, -5f, 120f, 0.85f),
+            new TownPiece("Lantern", -14.2f, 6.8f, 0f), new TownPiece("Lantern", -9.8f, -5.8f, 0f),
+            new TownPiece("Lantern", 1.2f, 0.5f, 0f), new TownPiece("Lantern", 6.8f, 9.2f, 180f),
+            new TownPiece("Lantern", 11.2f, -2.8f, 0f), new TownPiece("Lantern", 15.8f, -7.2f, 0f),
+        };
+
+        private static void BuildTown()
+        {
+            GameObject town = new GameObject("Town");
+            foreach (TownPiece piece in TownLayout)
+            {
+                GameObject model = AssetDatabase.LoadAssetAtPath<GameObject>($"{TownDir}/{piece.Model}.fbx");
+                if (model == null) continue;
+                GameObject go = (GameObject)PrefabUtility.InstantiatePrefab(model);
+                go.name = piece.Model;
+                go.transform.SetParent(town.transform, false);
+                go.transform.SetPositionAndRotation(new Vector3(piece.X, 0f, piece.Z), Quaternion.Euler(0f, piece.Yaw, 0f));
+                go.transform.localScale *= piece.Scale;
+                go.isStatic = true;
+                foreach (Animator a in go.GetComponentsInChildren<Animator>()) Object.DestroyImmediate(a);
+                Material material = GetOrCreateZombieMaterial(piece.Model, TownDir);
+                foreach (Renderer r in go.GetComponentsInChildren<Renderer>()) r.sharedMaterial = material;
+
+                // Trigger footprint: blocks placement clicks and the placement check, not shots or zombies.
+                Bounds bounds = ModelBounds(go);
+                BoxCollider box = go.AddComponent<BoxCollider>();
+                box.isTrigger = true;
+                box.center = go.transform.InverseTransformPoint(bounds.center);
+                Vector3 size = go.transform.InverseTransformVector(bounds.size);
+                box.size = new Vector3(Mathf.Abs(size.x), Mathf.Abs(size.y), Mathf.Abs(size.z));
+                go.AddComponent<Scenery>();
+
+                if (piece.Model == "Lantern") AddLanternLight(go, bounds);
+            }
+        }
+
+        private static void AddLanternLight(GameObject lantern, Bounds bounds)
+        {
+            GameObject glow = new GameObject("Glow");
+            glow.transform.SetParent(lantern.transform, false);
+            glow.transform.position = new Vector3(bounds.center.x, bounds.max.y - 0.5f, bounds.center.z);
+            Light light = glow.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = new Color(1f, 0.68f, 0.35f);
+            light.range = 6f;
+            light.intensity = 2.2f;
+            light.shadows = LightShadows.None;
+        }
+
+        /// <summary>Dusk light, fog, and post-processing so emissive eyes and crystals bloom.</summary>
+        private static void BuildAtmosphere()
+        {
+            Light sun = Object.FindAnyObjectByType<Light>();
+            if (sun != null)
+            {
+                sun.color = new Color(1f, 0.82f, 0.66f);
+                sun.intensity = 1.25f;
+                sun.shadows = LightShadows.Soft;
+                sun.transform.rotation = Quaternion.Euler(42f, -40f, 0f);
+            }
+
+            RenderSettings.ambientMode = AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(0.55f, 0.6f, 0.75f);
+            RenderSettings.ambientEquatorColor = new Color(0.42f, 0.42f, 0.45f);
+            RenderSettings.ambientGroundColor = new Color(0.22f, 0.24f, 0.2f);
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.Linear;
+            RenderSettings.fogColor = new Color(0.5f, 0.55f, 0.6f);
+            RenderSettings.fogStartDistance = 45f;
+            RenderSettings.fogEndDistance = 110f;
+
+            string profilePath = "Assets/Settings/MapVolume.asset";
+            VolumeProfile profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(profilePath);
+            if (profile == null)
+            {
+                profile = ScriptableObject.CreateInstance<VolumeProfile>();
+                AssetDatabase.CreateAsset(profile, profilePath);
+            }
+            Bloom bloom = GetOrAddOverride<Bloom>(profile);
+            bloom.threshold.Override(1f);
+            bloom.intensity.Override(0.8f);
+            bloom.scatter.Override(0.6f);
+            Tonemapping tonemapping = GetOrAddOverride<Tonemapping>(profile);
+            tonemapping.mode.Override(TonemappingMode.ACES);
+            ColorAdjustments color = GetOrAddOverride<ColorAdjustments>(profile);
+            color.postExposure.Override(0.25f);
+            color.contrast.Override(12f);
+            color.saturation.Override(8f);
+            Vignette vignette = GetOrAddOverride<Vignette>(profile);
+            vignette.intensity.Override(0.28f);
+            EditorUtility.SetDirty(profile);
+
+            GameObject volumeObject = new GameObject("Post Processing");
+            Volume volume = volumeObject.AddComponent<Volume>();
+            volume.isGlobal = true;
+            volume.sharedProfile = profile;
+        }
+
+        private static T GetOrAddOverride<T>(VolumeProfile profile) where T : VolumeComponent
+        {
+            if (!profile.TryGet(out T component))
+            {
+                component = profile.Add<T>(true);
+                AssetDatabase.AddObjectToAsset(component, profile);
+            }
+            component.active = true;
+            return component;
         }
 
         private static T SavePrefab<T>(GameObject instance, string name) where T : Component

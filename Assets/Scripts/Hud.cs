@@ -115,6 +115,7 @@ namespace TowerDefense
                 case PlacementResult.NotEnoughGold: return "<color=#FF8A7A>Not enough gold.</color>";
                 case PlacementResult.OnPath: return "<color=#FF8A7A>You can't build on the road.</color>";
                 case PlacementResult.TooCloseToTower: return "<color=#FF8A7A>Too close to another tower.</color>";
+                case PlacementResult.Blocked: return "<color=#FF8A7A>Something is in the way.</color>";
                 default: return "";
             }
         }
