@@ -54,6 +54,7 @@ namespace TowerDefense
         {
             path = enemyPath;
             nextWaypoint = 1;
+            GameAudio.Play(stats.spawn, 1f, 0f);
             Place(PathPoint(0));
             Vector3 heading = PathPoint(1) - PathPoint(0);
             heading.y = 0f;
@@ -144,8 +145,10 @@ namespace TowerDefense
             if (hp > 0f)
             {
                 Damaged?.Invoke();
+                GameAudio.PlayAny(stats.hurt, 0.5f);
                 return;
             }
+            GameAudio.PlayAny(stats.death, 0.7f);
 
             if (GameManager.Instance != null) GameManager.Instance.RegisterKill();
             if (Economy.Instance != null) Economy.Instance.Add(stats.goldReward);

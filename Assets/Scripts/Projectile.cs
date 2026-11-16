@@ -7,6 +7,7 @@ namespace TowerDefense
     public class Projectile : MonoBehaviour
     {
         [SerializeField] private float lifetime = 5f;
+        [SerializeField] private AudioClip impactSound;
 
         private float damage;
         private float splashRadius;
@@ -36,6 +37,7 @@ namespace TowerDefense
             spent = true;
 
             Enemy direct = collision.collider.GetComponentInParent<Enemy>();
+            if (direct != null || splashRadius > 0f) GameAudio.Play(impactSound, 0.6f);
             if (direct != null) direct.TakeDamage(damage);
 
             if (splashRadius > 0f)

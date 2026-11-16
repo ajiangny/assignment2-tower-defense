@@ -14,5 +14,8 @@ namespace TowerDefense
         [Min(0f)] public float damage = 1f;
         [Tooltip("0 means the shot only damages what it hits.")]
         [Min(0f)] public float splashRadius;
+
+        [Header("Sound")]
+        public AudioClip fireSound;
     }
 }

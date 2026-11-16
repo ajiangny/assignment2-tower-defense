@@ -107,6 +107,7 @@ namespace TowerDefense
             if (unitAnimator != null && unitAnimator.HasState(0, Animator.StringToHash(attackState)))
                 unitAnimator.Play(attackState, 0, 0f);
             recoil = 1f;
+            GameAudio.Play(stats.fireSound, 0.55f);
             Projectile shot = Instantiate(projectilePrefab, muzzle.position, Quaternion.LookRotation(direction));
             shot.Launch(direction * stats.projectileSpeed, stats.damage, stats.splashRadius);
         }

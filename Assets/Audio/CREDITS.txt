@@ -1,0 +1,2 @@
+All sound effects were generated with ElevenLabs Sound Effects (eleven_text_to_sound_v2)
+from our own text prompts, for use in this project.

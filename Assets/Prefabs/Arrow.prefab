@@ -154,3 +154,4 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TowerDefense.Projectile
   lifetime: 5
+  impactSound: {fileID: 8300000, guid: 4fabe9a586cdf4a888932df55e1e1a3b, type: 3}

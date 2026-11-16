@@ -50,6 +50,8 @@ namespace TowerDefense
         private TMP_Text bannerTitle, bannerSubtitle;
         private float bannerTimer;
         private int seenWave;
+        private int seenSelection = -1;
+        private bool endSoundPlayed;
         private Card[] cards;
         private Button waveButton;
         private Image waveButtonImage;
@@ -198,7 +200,7 @@ namespace TowerDefense
             RectTransform speed = Box("Speed", root, Anchor.BottomRight, new Vector2(-330f, 18f), new Vector2(92f, 92f), Panel);
             Button speedButton = speed.gameObject.AddComponent<Button>();
             speedButton.targetGraphic = speed.GetComponent<Image>();
-            speedButton.onClick.AddListener(() => GameManager.Instance.ToggleFastForward());
+            speedButton.onClick.AddListener(() => { GameManager.Instance.ToggleFastForward(); Click(); });
             speedLabel = Label(speed, "", 26, Text, TextAlignmentOptions.Center, new Vector2(0f, 8f), new Vector2(92f, 34f), true, 0f, Anchor.Center);
             Label(speed, "SPEED  F", 12, Muted, TextAlignmentOptions.Center, new Vector2(0f, -22f), new Vector2(92f, 18f), false, 1f, Anchor.Center);
         }
@@ -257,8 +259,8 @@ namespace TowerDefense
             Keyboard keyboard = Keyboard.current;
             if (keyboard != null && !game.IsFinished)
             {
-                if (keyboard.hKey.wasPressedThisFrame) ToggleHelp();
-                if (keyboard.fKey.wasPressedThisFrame) game.ToggleFastForward();
+                if (keyboard.hKey.wasPressedThisFrame) { ToggleHelp(); Click(); }
+                if (keyboard.fKey.wasPressedThisFrame) { game.ToggleFastForward(); Click(); }
                 if (keyboard.spaceKey.wasPressedThisFrame) spawner.StartNextWave();
             }
 
@@ -268,6 +270,12 @@ namespace TowerDefense
             waveValue.text = $"{spawner.CurrentWave}<size=70%><color=#9EA3AF> / {spawner.TotalWaves}</color></size>";
             towerValue.text = $"{(atCap ? "<color=#FF6B5C>" : "")}{Tower.Active.Count}{(atCap ? "</color>" : "")}<size=70%><color=#9EA3AF> / {placer.MaxTowers}</color></size>";
             killValue.text = game.Kills.ToString();
+
+            if (placer.SelectedIndex != seenSelection)
+            {
+                if (placer.SelectedIndex >= 0) Click();
+                seenSelection = placer.SelectedIndex;
+            }
 
             UpdateCards(gold, atCap);
             UpdateWaveControls(game);
@@ -336,6 +344,11 @@ namespace TowerDefense
                 {
                     toastText.text = message;
                     toastTimer = ToastTime;
+                    GameAudio.Play(GameAudio.Instance != null ? GameAudio.Instance.error : null, 0.7f, 0f);
+                }
+                else if (placer.LastResult == PlacementResult.Placed)
+                {
+                    GameAudio.Play(GameAudio.Instance != null ? GameAudio.Instance.build : null, 0.8f);
                 }
             }
             toastTimer -= Time.unscaledDeltaTime;
@@ -352,6 +365,7 @@ namespace TowerDefense
                 bannerSubtitle.text = boss ? "THE ZOMBIE KING RISES" : seenWave == 1 ? "THE DEAD ARE COMING" : "";
                 bannerTitle.color = boss ? Danger : Text;
                 bannerTimer = BannerTime;
+                if (seenWave > 0) GameAudio.Play(GameAudio.Instance != null ? GameAudio.Instance.waveStart : null, 0.7f, 0f);
             }
             bannerTimer -= Time.unscaledDeltaTime;
             float fadeIn = Mathf.Clamp01((BannerTime - bannerTimer) / 0.25f);
@@ -369,8 +383,15 @@ namespace TowerDefense
             endWaves.text = $"{survived}<size=60%><color=#9EA3AF> / {spawner.TotalWaves}</color></size>";
             endKills.text = game.Kills.ToString();
             endScreen.SetActive(true);
+            if (!endSoundPlayed && GameAudio.Instance != null)
+            {
+                endSoundPlayed = true;
+                GameAudio.Play(won ? GameAudio.Instance.victory : GameAudio.Instance.defeat, 0.9f, 0f);
+            }
             placer.Select(-1);
         }
+
+        private static void Click() => GameAudio.Play(GameAudio.Instance != null ? GameAudio.Instance.click : null, 0.6f, 0.04f);
 
         private void ToggleHelp()
         {

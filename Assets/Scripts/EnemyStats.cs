@@ -14,5 +14,13 @@ namespace TowerDefense
         [Tooltip("Spawned where this enemy dies, for example Runners from a Bloater.")]
         public Enemy splitInto;
         [Min(0)] public int splitCount;
+
+        [Header("Sound")]
+        [Tooltip("Groans played now and then while walking.")]
+        public AudioClip[] voice;
+        public AudioClip[] hurt;
+        public AudioClip[] death;
+        [Tooltip("Played once when this enemy appears, e.g. the boss roar.")]
+        public AudioClip spawn;
     }
 }

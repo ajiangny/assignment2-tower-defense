@@ -122,6 +122,13 @@ namespace TowerDefense.EditorTools
             GameObject systems = new GameObject("Game");
             systems.AddComponent<GameManager>();
             systems.AddComponent<Economy>();
+            GameAudio audio = systems.AddComponent<GameAudio>();
+            audio.click = Sound("UI/Click");
+            audio.error = Sound("UI/Error");
+            audio.build = Sound("UI/Build");
+            audio.waveStart = Sound("UI/WaveHorn");
+            audio.victory = Sound("UI/Victory");
+            audio.defeat = Sound("UI/Defeat");
             WaveSpawner spawner = systems.AddComponent<WaveSpawner>();
             spawner.Configure(waves, path);
             TowerPlacer placer = systems.AddComponent<TowerPlacer>();
@@ -218,7 +225,9 @@ namespace TowerDefense.EditorTools
             Rigidbody body = go.AddComponent<Rigidbody>();
             body.useGravity = false;
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            go.AddComponent<Projectile>();
+            Projectile projectile = go.AddComponent<Projectile>();
+            AudioClip impact = Sound(name == "Axe" ? "Towers/AxeHit" : name == "Arrow" ? "Towers/ArrowHit" : "Towers/OrbBurst");
+            SetReference(projectile, "impactSound", impact);
 
             return SavePrefab<Projectile>(go, name);
         }
@@ -234,6 +243,10 @@ namespace TowerDefense.EditorTools
             stats.goldReward = gold;
             stats.splitInto = splitInto;
             stats.splitCount = splitCount;
+            stats.voice = assetName == "Runner" ? Sounds("Zombies/Shriek1", "Zombies/Shriek2") : Sounds("Zombies/Groan1", "Zombies/Groan2");
+            stats.hurt = Sounds("Zombies/Hurt1", "Zombies/Hurt2");
+            stats.death = Sounds("Zombies/Death1", "Zombies/Death2");
+            stats.spawn = assetName == "ZombieKing" ? Sound("Zombies/KingRoar") : null;
             EditorUtility.SetDirty(stats);
 
             // Prefer the rigged model; fall back to the static one, then to a sphere.
@@ -542,6 +555,7 @@ namespace TowerDefense.EditorTools
             stats.range = range;
             stats.damage = damage;
             stats.splashRadius = splash;
+            stats.fireSound = Sound(assetName == "KnightBastion" ? "Towers/AxeThrow" : assetName == "ArcherTower" ? "Towers/ArrowRelease" : "Towers/OrbCast");
             EditorUtility.SetDirty(stats);
 
             Material material = GetOrCreateMaterial(assetName, color);
@@ -906,6 +920,20 @@ namespace TowerDefense.EditorTools
         }
 
         private const string PortraitDir = "Assets/UI/Portraits";
+        private const string AudioDir = "Assets/Audio";
+
+        private static AudioClip Sound(string path) => AssetDatabase.LoadAssetAtPath<AudioClip>($"{AudioDir}/{path}.mp3");
+
+        private static AudioClip[] Sounds(params string[] paths)
+        {
+            var clips = new List<AudioClip>();
+            foreach (string path in paths)
+            {
+                AudioClip clip = Sound(path);
+                if (clip != null) clips.Add(clip);
+            }
+            return clips.ToArray();
+        }
 
         /// <summary>Renders each tower's defender, head and shoulders, into a sprite for the HUD cards.</summary>
         private static Sprite[] RenderTowerPortraits(string[] towerNames)

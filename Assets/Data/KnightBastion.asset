@@ -20,3 +20,4 @@ MonoBehaviour:
   range: 9
   damage: 2
   splashRadius: 0
+  fireSound: {fileID: 8300000, guid: 186b9ceec1f67421f880f4cce46e1334, type: 3}

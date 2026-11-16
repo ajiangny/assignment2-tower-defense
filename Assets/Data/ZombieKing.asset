@@ -19,3 +19,13 @@ MonoBehaviour:
   goldReward: 200
   splitInto: {fileID: 0}
   splitCount: 0
+  voice:
+  - {fileID: 8300000, guid: 8a0f355a3b7af4a59a3d78b89ac30732, type: 3}
+  - {fileID: 8300000, guid: 5b241ec596fe04c52b1b32ca1afd00a9, type: 3}
+  hurt:
+  - {fileID: 8300000, guid: ca15041017b1c4041b03f115f74615d6, type: 3}
+  - {fileID: 8300000, guid: e51f05a5c6198447c9657b0faf98d362, type: 3}
+  death:
+  - {fileID: 8300000, guid: e506c837f79b24515b6f037e5ae525db, type: 3}
+  - {fileID: 8300000, guid: fe7026a5cc7cd4d72aa3520b96456a4f, type: 3}
+  spawn: {fileID: 8300000, guid: 9ca0ee12046384cb8adb40e538064261, type: 3}
