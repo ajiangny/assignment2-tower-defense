@@ -93,6 +93,8 @@ namespace TowerDefense.EditorTools
                     BuildProjectile("Orb", 0.6f, new Color(0.4f, 0.8f, 1f))),
             };
 
+            string[] towerNames = System.Array.ConvertAll(towers, t => t.name);
+
             Enemy shambler = BuildEnemy("Shambler", 2.5f, 8f, 0f, 5, 1f, new Color(0.45f, 0.6f, 0.3f), null, 0);
             Enemy runner = BuildEnemy("Runner", 5.5f, 4f, 0f, 3, 0.7f, new Color(0.75f, 0.85f, 0.3f), null, 0);
             Enemy clubber = BuildEnemy("Clubber", 2f, 25f, 0f, 12, 1.4f, new Color(0.3f, 0.45f, 0.2f), null, 0);
@@ -124,7 +126,7 @@ namespace TowerDefense.EditorTools
             spawner.Configure(waves, path);
             TowerPlacer placer = systems.AddComponent<TowerPlacer>();
             placer.Configure(towers, ground.GetComponent<Collider>(), path, previewMat);
-            systems.AddComponent<Hud>().Configure(placer, spawner);
+            systems.AddComponent<Hud>().Configure(placer, spawner, RenderTowerPortraits(towerNames));
 
             Camera camera = Camera.main;
             camera.transform.position = new Vector3(-1f, 30f, -27f);
@@ -901,6 +903,105 @@ namespace TowerDefense.EditorTools
             }
             component.active = true;
             return component;
+        }
+
+        private const string PortraitDir = "Assets/UI/Portraits";
+
+        /// <summary>Renders each tower's defender, head and shoulders, into a sprite for the HUD cards.</summary>
+        private static Sprite[] RenderTowerPortraits(string[] towerNames)
+        {
+            Directory.CreateDirectory(PortraitDir);
+            var sprites = new Sprite[towerNames.Length];
+            for (int i = 0; i < towerNames.Length; i++)
+            {
+                string name = towerNames[i];
+                string unitPath = $"{TowerRiggedDir}/{name}.fbx";
+                GameObject model = AssetDatabase.LoadAssetAtPath<GameObject>(unitPath);
+                if (model == null) continue;
+                string pngPath = $"{PortraitDir}/{name}.png";
+                RenderPortrait(model, GetOrCreateZombieMaterial(name, TowerRiggedDir), unitPath, name, pngPath);
+                AssetDatabase.ImportAsset(pngPath);
+                TextureImporter importer = (TextureImporter)AssetImporter.GetAtPath(pngPath);
+                if (importer.textureType != TextureImporterType.Sprite || importer.mipmapEnabled)
+                {
+                    importer.textureType = TextureImporterType.Sprite;
+                    importer.spriteImportMode = SpriteImportMode.Single;
+                    importer.mipmapEnabled = false;
+                    importer.alphaIsTransparency = true;
+                    importer.SaveAndReimport();
+                }
+                sprites[i] = AssetDatabase.LoadAssetAtPath<Sprite>(pngPath);
+            }
+            return sprites;
+        }
+
+        private static void RenderPortrait(GameObject model, Material material, string modelPath, string assetName, string pngPath)
+        {
+            Scene preview = EditorSceneManager.NewPreviewScene();
+            try
+            {
+                GameObject unit = (GameObject)PrefabUtility.InstantiatePrefab(model, preview);
+                foreach (Renderer r in unit.GetComponentsInChildren<Renderer>()) r.sharedMaterial = material;
+                foreach (Object asset in AssetDatabase.LoadAllAssetsAtPath(modelPath))
+                    if (asset is AnimationClip clip && clip.name == "Idle") clip.SampleAnimation(unit, 0f);
+
+                Bounds bounds = ModelBounds(unit);
+                foreach (SkinnedMeshRenderer skinned in unit.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    var baked = new Mesh();
+                    skinned.BakeMesh(baked, true);
+                    foreach (Vector3 v in baked.vertices) bounds.Encapsulate(skinned.transform.TransformPoint(v));
+                    Object.DestroyImmediate(baked);
+                }
+
+                AddPreviewLight(preview, new Vector3(35f, -30f, 0f), 1.3f, new Color(1f, 0.95f, 0.88f));
+                AddPreviewLight(preview, new Vector3(20f, 150f, 0f), 0.6f, new Color(0.7f, 0.78f, 1f));
+
+                GameObject cameraObject = new GameObject("Portrait Camera");
+                SceneManager.MoveGameObjectToScene(cameraObject, preview);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.scene = preview;
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0f, 0f, 0f, 0f);
+                camera.fieldOfView = 24f;
+                camera.nearClipPlane = 0.05f;
+                float height = bounds.size.y;
+                Vector3 focus = new Vector3(bounds.center.x, bounds.max.y - height * 0.36f, bounds.center.z);
+                Vector3 direction = new Vector3(0.35f, 0.12f, 1f).normalized; // models face +Z
+                camera.transform.position = focus + direction * height * 2.2f;
+                camera.transform.LookAt(focus);
+
+                const int size = 256;
+                var target = new RenderTexture(size, size, 24, RenderTextureFormat.ARGB32) { antiAliasing = 4 };
+                camera.targetTexture = target;
+                camera.Render();
+                RenderTexture previous = RenderTexture.active;
+                RenderTexture.active = target;
+                var image = new Texture2D(size, size, TextureFormat.RGBA32, false);
+                image.ReadPixels(new Rect(0, 0, size, size), 0, 0);
+                image.Apply();
+                RenderTexture.active = previous;
+                camera.targetTexture = null;
+                File.WriteAllBytes(pngPath, image.EncodeToPNG());
+                Object.DestroyImmediate(image);
+                target.Release();
+                Object.DestroyImmediate(target);
+            }
+            finally
+            {
+                EditorSceneManager.ClosePreviewScene(preview);
+            }
+        }
+
+        private static void AddPreviewLight(Scene scene, Vector3 euler, float intensity, Color color)
+        {
+            GameObject go = new GameObject("Light");
+            SceneManager.MoveGameObjectToScene(go, scene);
+            go.transform.rotation = Quaternion.Euler(euler);
+            Light light = go.AddComponent<Light>();
+            light.type = LightType.Directional;
+            light.intensity = intensity;
+            light.color = color;
         }
 
         private static T SavePrefab<T>(GameObject instance, string name) where T : Component

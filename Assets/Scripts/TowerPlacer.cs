@@ -34,6 +34,9 @@ namespace TowerDefense
         public int MaxTowers => maxTowers;
         public int SelectedIndex { get; private set; } = -1;
         public PlacementResult LastResult { get; private set; } = PlacementResult.NoTowerSelected;
+
+        /// <summary>Counts placement clicks, so the HUD can show a message for each failed attempt.</summary>
+        public int Attempts { get; private set; }
         public int TowerTypeCount => towerPrefabs.Length;
         public TowerStats StatsFor(int index) => towerPrefabs[index].Stats;
 
@@ -81,6 +84,7 @@ namespace TowerDefense
         public PlacementResult TryPlace(Vector3 point)
         {
             LastResult = Check(point);
+            Attempts++;
             if (LastResult != PlacementResult.Placed) return LastResult;
 
             Tower prefab = towerPrefabs[SelectedIndex];
