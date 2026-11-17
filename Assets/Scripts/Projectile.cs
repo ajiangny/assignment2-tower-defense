@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace TowerDefense
@@ -22,6 +23,9 @@ namespace TowerDefense
     [RequireComponent(typeof(Rigidbody))]
     public class Projectile : MonoBehaviour
     {
+        /// <summary>Every projectile in flight, so new shots can ignore them (volleys spawn overlapping).</summary>
+        private static readonly List<Collider> flying = new List<Collider>();
+
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
 
@@ -63,6 +67,12 @@ namespace TowerDefense
                 foreach (Collider towerCollider in tower.Colliders)
                     Physics.IgnoreCollision(own, towerCollider);
             }
+
+            // ...and through each other: a multishot volley spawns every projectile at the same muzzle point,
+            // and without this they collide on the spot and destroy each other at the top of the tower.
+            flying.RemoveAll(c => c == null);
+            foreach (Collider other in flying) Physics.IgnoreCollision(own, other);
+            flying.Add(own);
 
             if (info.Tint.a > 0f) ApplyTint(info.Tint);
             if (info.Tier > 0) ApplyTierLook(info.Tier, info.Tint.a > 0f ? info.Tint : impactColor);
@@ -126,6 +136,14 @@ namespace TowerDefense
                 glow.intensity *= 1f + 0.3f * tier;
                 glow.range *= 1f + 0.2f * tier;
             }
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics() => flying.Clear();
+
+        private void OnDestroy()
+        {
+            if (own != null) flying.Remove(own);
         }
 
         private void Update()
