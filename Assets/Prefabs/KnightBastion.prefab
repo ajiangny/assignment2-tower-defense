@@ -53,6 +53,7 @@ MonoBehaviour:
   muzzle: {fileID: 1967572037783626565}
   sizeColumnFromStats: 0
   attackState: Attack
+  baseRingRadius: 2.3
 --- !u!1 &5426109723637638046
 GameObject:
   m_ObjectHideFlags: 0

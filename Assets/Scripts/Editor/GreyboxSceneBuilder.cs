@@ -93,6 +93,7 @@ namespace TowerDefense.EditorTools
                     BuildProjectile("Orb", 0.6f, new Color(0.4f, 0.8f, 1f))),
             };
 
+            BuildUpgrades(towers);
             string[] towerNames = System.Array.ConvertAll(towers, t => t.name);
 
             Enemy shambler = BuildEnemy("Shambler", 2.5f, 8f, 0f, 5, 1f, new Color(0.45f, 0.6f, 0.3f), null, 0);
@@ -108,16 +109,19 @@ namespace TowerDefense.EditorTools
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
 
+            // Wide enough that its edges are never on screen; the fog swallows the far side.
             GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
             ground.name = "Ground";
-            ground.transform.localScale = new Vector3(9f, 1f, 7f);
+            ground.transform.localScale = new Vector3(18f, 1f, 14f);
             ground.GetComponent<Renderer>().sharedMaterial = groundMat;
-            ApplyGroundTexture(groundMat, "Grass", new Vector2(7.5f, 5.8f));
+            ApplyGroundTexture(groundMat, "Grass", new Vector2(15f, 11.6f));
+            groundMat.SetColor("_BaseColor", new Color(0.86f, 0.92f, 0.8f));
 
             ApplyGroundTexture(pathMat, "Cobblestone", Vector2.one);
             EnemyPath path = BuildPath(pathMat);
             BuildTown();
             BuildAtmosphere();
+            BuildAmbience();
 
             GameObject systems = new GameObject("Game");
             systems.AddComponent<GameManager>();
@@ -165,8 +169,18 @@ namespace TowerDefense.EditorTools
             // One cobblestone ribbon along the rounded path. No collider, so it doesn't intercept clicks or shots.
             GameObject road = new GameObject("Road");
             road.transform.SetParent(root.transform);
-            road.AddComponent<MeshFilter>().sharedMesh = BuildRoadMesh(PathPoints, RoadWidth);
+            road.AddComponent<MeshFilter>().sharedMesh = BuildRoadMesh(PathPoints, RoadWidth, 0.03f, "Road");
             road.AddComponent<MeshRenderer>().sharedMaterial = material;
+
+            // A darker trodden-earth verge under the cobbles gives the road a clean, readable edge.
+            GameObject verge = new GameObject("Road Verge");
+            verge.transform.SetParent(root.transform);
+            verge.AddComponent<MeshFilter>().sharedMesh = BuildRoadMesh(PathPoints, RoadWidth + 0.7f, 0.015f, "RoadVerge");
+            MeshRenderer vergeRenderer = verge.AddComponent<MeshRenderer>();
+            Material vergeMat = GetOrCreateMaterial("RoadVerge", new Color(0.36f, 0.29f, 0.21f));
+            vergeMat.SetFloat("_Smoothness", 0.05f);
+            vergeRenderer.sharedMaterial = vergeMat;
+            vergeRenderer.shadowCastingMode = ShadowCastingMode.Off;
             return path;
         }
 
@@ -199,37 +213,225 @@ namespace TowerDefense.EditorTools
             return new WaveDefinition.Group { enemy = enemy, count = count, interval = interval, startDelay = startDelay };
         }
 
+        private enum ProjectileLook { Axe, Arrow, Orb }
+
+        /// <summary>
+        /// A physics projectile: a sphere collider on the root, a model under it, a fading trail and an impact effect.
+        /// The axe tumbles end over end, the arrow is built from parts, and the orb is an emissive core with a light.
+        /// </summary>
         private static Projectile BuildProjectile(string name, float size, Color color)
         {
-            GameObject go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            go.name = name;
-            go.transform.localScale = Vector3.one * size;
-            go.GetComponent<Renderer>().sharedMaterial = GetOrCreateMaterial(name, color);
+            ProjectileLook look = name == "Axe" ? ProjectileLook.Axe : name == "Arrow" ? ProjectileLook.Arrow : ProjectileLook.Orb;
+            GameObject go = new GameObject(name);
+            SphereCollider sphere = go.AddComponent<SphereCollider>();
+            sphere.radius = size / 2f;
 
-            // A matching prop model (the knight's axe) replaces the sphere's look; the sphere stays as the collider.
-            GameObject propModel = AssetDatabase.LoadAssetAtPath<GameObject>($"{PropDir}/{name}.fbx");
-            if (propModel != null)
+            Projectile projectile = go.AddComponent<Projectile>();
+            SerializedObject serialized = new SerializedObject(projectile);
+            Color trailColor;
+            float trailWidth, trailTime;
+
+            switch (look)
             {
-                go.GetComponent<Renderer>().enabled = false;
-                GameObject visual = (GameObject)PrefabUtility.InstantiatePrefab(propModel);
-                visual.name = "Visual";
-                foreach (Collider c in visual.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
-                foreach (Animator a in visual.GetComponentsInChildren<Animator>()) Object.DestroyImmediate(a);
-                Material propMaterial = GetOrCreateZombieMaterial(name, PropDir);
-                foreach (Renderer r in visual.GetComponentsInChildren<Renderer>()) r.sharedMaterial = propMaterial;
-                visual.transform.SetParent(go.transform, false);
-                visual.transform.localScale = Vector3.one / size;
-                visual.transform.localRotation = Quaternion.Euler(90f, 0f, 0f); // head of the axe leads the flight
+                case ProjectileLook.Axe:
+                {
+                    GameObject spin = new GameObject("Spin");
+                    spin.transform.SetParent(go.transform, false);
+                    GameObject propModel = AssetDatabase.LoadAssetAtPath<GameObject>($"{PropDir}/Axe.fbx");
+                    if (propModel != null)
+                    {
+                        GameObject visual = (GameObject)PrefabUtility.InstantiatePrefab(propModel);
+                        visual.name = "Visual";
+                        foreach (Collider c in visual.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
+                        foreach (Animator a in visual.GetComponentsInChildren<Animator>()) Object.DestroyImmediate(a);
+                        Material propMaterial = GetOrCreateZombieMaterial("Axe", PropDir);
+                        foreach (Renderer r in visual.GetComponentsInChildren<Renderer>()) r.sharedMaterial = propMaterial;
+                        visual.transform.SetParent(spin.transform, false);
+                        visual.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                        // Spin about the grip's centre rather than the handle's end.
+                        visual.transform.localPosition = -spin.transform.InverseTransformPoint(ModelBounds(visual).center);
+                    }
+                    serialized.FindProperty("spinner").objectReferenceValue = spin.transform;
+                    serialized.FindProperty("spinAxis").vector3Value = Vector3.right;
+                    serialized.FindProperty("spinSpeed").floatValue = 1080f;
+                    serialized.FindProperty("impactStyle").enumValueIndex = (int)ImpactStyle.Splinters;
+                    serialized.FindProperty("impactColor").colorValue = new Color(1f, 0.95f, 0.85f);
+                    trailColor = new Color(0.85f, 0.9f, 1f, 0.55f);
+                    trailWidth = 0.28f;
+                    trailTime = 0.18f;
+                    break;
+                }
+                case ProjectileLook.Arrow:
+                {
+                    GameObject visual = new GameObject("Visual");
+                    visual.transform.SetParent(go.transform, false);
+                    Material wood = GetOrCreateMaterial("ArrowShaft", new Color(0.45f, 0.3f, 0.18f));
+                    Material steel = GetOrCreateMaterial("ArrowHead", new Color(0.75f, 0.78f, 0.82f));
+                    Material feather = GetOrCreateMaterial("ArrowFletching", new Color(0.92f, 0.9f, 0.84f));
+                    steel.SetFloat("_Metallic", 0.8f);
+                    steel.SetFloat("_Smoothness", 0.7f);
+                    ArrowPart(visual, PrimitiveType.Cylinder, wood, new Vector3(0f, 0f, -0.1f), new Vector3(90f, 0f, 0f), new Vector3(0.04f, 0.38f, 0.04f));
+                    ArrowPart(visual, PrimitiveType.Cube, steel, new Vector3(0f, 0f, 0.32f), new Vector3(0f, 45f, 0f), new Vector3(0.11f, 0.035f, 0.11f));
+                    ArrowPart(visual, PrimitiveType.Cube, steel, new Vector3(0f, 0f, 0.32f), new Vector3(0f, 0f, 90f), new Vector3(0.035f, 0.035f, 0.1f));
+                    ArrowPart(visual, PrimitiveType.Cube, feather, new Vector3(0f, 0f, -0.42f), Vector3.zero, new Vector3(0.18f, 0.012f, 0.16f));
+                    ArrowPart(visual, PrimitiveType.Cube, feather, new Vector3(0f, 0f, -0.42f), Vector3.zero, new Vector3(0.012f, 0.18f, 0.16f));
+                    serialized.FindProperty("impactStyle").enumValueIndex = (int)ImpactStyle.Sparks;
+                    serialized.FindProperty("impactColor").colorValue = new Color(1f, 0.85f, 0.5f);
+                    trailColor = new Color(1f, 0.95f, 0.8f, 0.65f);
+                    trailWidth = 0.15f;
+                    trailTime = 0.22f;
+                    break;
+                }
+                default:
+                {
+                    Color hdr = color * 4f;
+                    hdr.a = 1f;
+                    Material orbMaterial = GetOrCreateMaterial("OrbCore", Color.white);
+                    orbMaterial.SetColor("_BaseColor", color);
+                    orbMaterial.EnableKeyword("_EMISSION");
+                    orbMaterial.SetColor("_EmissionColor", hdr);
+                    orbMaterial.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+                    GameObject core = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    core.name = "Core";
+                    Object.DestroyImmediate(core.GetComponent<Collider>());
+                    core.transform.SetParent(go.transform, false);
+                    core.transform.localScale = Vector3.one * size * 0.75f;
+                    Renderer coreRenderer = core.GetComponent<Renderer>();
+                    coreRenderer.sharedMaterial = orbMaterial;
+                    coreRenderer.shadowCastingMode = ShadowCastingMode.Off;
+
+                    GameObject halo = new GameObject("Halo");
+                    halo.transform.SetParent(go.transform, false);
+                    Light light = halo.AddComponent<Light>();
+                    light.type = LightType.Point;
+                    light.color = color;
+                    light.range = 4.5f;
+                    light.intensity = 3f;
+                    light.shadows = LightShadows.None;
+
+                    SerializedProperty tints = serialized.FindProperty("tintRenderers");
+                    tints.arraySize = 1;
+                    tints.GetArrayElementAtIndex(0).objectReferenceValue = coreRenderer;
+                    serialized.FindProperty("glow").objectReferenceValue = light;
+                    serialized.FindProperty("impactStyle").enumValueIndex = (int)ImpactStyle.Arcane;
+                    serialized.FindProperty("impactColor").colorValue = color;
+                    trailColor = new Color(color.r, color.g, color.b, 0.9f);
+                    trailWidth = size * 0.8f;
+                    trailTime = 0.35f;
+                    break;
+                }
             }
 
-            Rigidbody body = go.AddComponent<Rigidbody>();
+            // The trail lives on a child so it can be detached on impact and finish fading.
+            GameObject trailObject = new GameObject("Trail");
+            trailObject.transform.SetParent(go.transform, false);
+            TrailRenderer trail = trailObject.AddComponent<TrailRenderer>();
+            trail.sharedMaterial = BuildVfxMaterials().trail;
+            trail.time = trailTime;
+            trail.minVertexDistance = 0.08f;
+            trail.widthCurve = AnimationCurve.Linear(0f, 1f, 1f, 0f);
+            trail.widthMultiplier = trailWidth;
+            trail.startColor = trailColor;
+            trail.endColor = new Color(trailColor.r, trailColor.g, trailColor.b, 0f);
+            trail.shadowCastingMode = ShadowCastingMode.Off;
+            trail.receiveShadows = false;
+            serialized.FindProperty("trail").objectReferenceValue = trail;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            Rigidbody body = go.GetComponent<Rigidbody>(); // added by Projectile's RequireComponent
             body.useGravity = false;
+            body.constraints = RigidbodyConstraints.FreezeRotation;
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            Projectile projectile = go.AddComponent<Projectile>();
             AudioClip impact = Sound(name == "Axe" ? "Towers/AxeHit" : name == "Arrow" ? "Towers/ArrowHit" : "Towers/OrbBurst");
             SetReference(projectile, "impactSound", impact);
 
             return SavePrefab<Projectile>(go, name);
+        }
+
+        private static void ArrowPart(GameObject parent, PrimitiveType type, Material material, Vector3 position, Vector3 euler, Vector3 scale)
+        {
+            GameObject part = GameObject.CreatePrimitive(type);
+            Object.DestroyImmediate(part.GetComponent<Collider>());
+            part.transform.SetParent(parent.transform, false);
+            part.transform.localPosition = position;
+            part.transform.localRotation = Quaternion.Euler(euler);
+            part.transform.localScale = scale;
+            Renderer renderer = part.GetComponent<Renderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+        }
+
+        // ---------- VFX materials ----------
+
+        private const string VfxDir = "Assets/Resources/Vfx";
+
+        /// <summary>
+        /// Soft-dot and soft-line textures with URP particle materials (additive and alpha-blended).
+        /// They live in Resources so the runtime Vfx helper can load them in a build.
+        /// </summary>
+        private static (Material additive, Material alpha, Material trail) BuildVfxMaterials()
+        {
+            Directory.CreateDirectory(VfxDir);
+            Texture2D dot = SaveGeneratedTexture("SoftDot", (u, v) =>
+            {
+                float d = Mathf.Clamp01(Vector2.Distance(new Vector2(u, v), new Vector2(0.5f, 0.5f)) * 2f);
+                return Mathf.Pow(1f - d, 2f);
+            });
+            Texture2D line = SaveGeneratedTexture("SoftLine", (u, v) =>
+            {
+                float d = Mathf.Abs(v - 0.5f) * 2f;
+                return Mathf.Pow(1f - d, 1.5f);
+            });
+            Material additive = VfxMaterial("VfxAdditive", dot, true, new Color(1.6f, 1.6f, 1.6f, 1f));
+            Material alpha = VfxMaterial("VfxAlpha", dot, false, Color.white);
+            Material trail = VfxMaterial("VfxTrail", line, true, new Color(1.5f, 1.5f, 1.5f, 1f));
+            return (additive, alpha, trail);
+        }
+
+        private static Texture2D SaveGeneratedTexture(string name, System.Func<float, float, float> alpha)
+        {
+            string path = $"{VfxDir}/{name}.png";
+            if (!File.Exists(path))
+            {
+                const int size = 64;
+                Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+                for (int y = 0; y < size; y++)
+                    for (int x = 0; x < size; x++)
+                        texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha((x + 0.5f) / size, (y + 0.5f) / size)));
+                File.WriteAllBytes(path, texture.EncodeToPNG());
+                Object.DestroyImmediate(texture);
+                AssetDatabase.ImportAsset(path);
+                TextureImporter importer = (TextureImporter)AssetImporter.GetAtPath(path);
+                importer.alphaIsTransparency = true;
+                importer.wrapMode = TextureWrapMode.Clamp;
+                importer.SaveAndReimport();
+            }
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        }
+
+        private static Material VfxMaterial(string name, Texture2D texture, bool additive, Color tint)
+        {
+            string path = $"{VfxDir}/{name}.mat";
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));
+                AssetDatabase.CreateAsset(material, path);
+            }
+            material.SetTexture("_BaseMap", texture);
+            material.SetColor("_BaseColor", tint);
+            material.SetFloat("_Surface", 1f);
+            material.SetFloat("_Blend", additive ? 2f : 0f);
+            material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            material.SetFloat("_DstBlend", additive ? (float)BlendMode.One : (float)BlendMode.OneMinusSrcAlpha);
+            material.SetFloat("_SrcBlendAlpha", (float)BlendMode.One);
+            material.SetFloat("_DstBlendAlpha", additive ? (float)BlendMode.One : (float)BlendMode.OneMinusSrcAlpha);
+            material.SetFloat("_ZWrite", 0f);
+            material.SetOverrideTag("RenderType", "Transparent");
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.renderQueue = (int)RenderQueue.Transparent;
+            EditorUtility.SetDirty(material);
+            return material;
         }
 
         private static Enemy BuildEnemy(string displayName, float speed, float hp, float armor, int gold, float size, Color color, Enemy splitInto, int splitCount)
@@ -662,6 +864,128 @@ namespace TowerDefense.EditorTools
             return SavePrefab<Tower>(root, assetName);
         }
 
+        // ---------- Upgrades ----------
+
+        private static UpgradeTier Tier(string name, int cost, string description, float damage = 0f, float rate = 1f, float range = 0f,
+            float splash = 0f, float speed = 1f, int extraShots = 0, int pierce = 0, float slow = 0f, float slowDuration = 0f)
+        {
+            return new UpgradeTier
+            {
+                name = name, cost = cost, description = description, damageBonus = damage, rateMultiplier = rate, rangeBonus = range,
+                splashBonus = splash, projectileSpeedMultiplier = speed, extraShots = extraShots, pierce = pierce, slow = slow, slowDuration = slowDuration,
+            };
+        }
+
+        private static UpgradePath Route(string name, Color color, params UpgradeTier[] tiers) => new UpgradePath { name = name, color = color, tiers = tiers };
+
+        /// <summary>Two paths per tower, three tiers each. One path can reach tier 3, the other stops at tier 1.</summary>
+        private static void BuildUpgrades(Tower[] towers)
+        {
+            var paths = new Dictionary<string, UpgradePath[]>
+            {
+                ["KnightBastion"] = new[]
+                {
+                    Route("Berserker", new Color(0.97f, 0.42f, 0.34f),
+                        Tier("Whetted Axes", 110, "Sharper edges. +1 damage.", damage: 1f),
+                        Tier("Battle Frenzy", 240, "Throws 50% faster.", rate: 1.5f),
+                        Tier("Whirlwind Warlord", 650, "+3 damage, 50% faster, +2 range.", damage: 3f, rate: 1.5f, range: 2f)),
+                    Route("Axe Master", new Color(0.98f, 0.8f, 0.32f),
+                        Tier("Long Arm", 100, "+2.5 range.", range: 2.5f),
+                        Tier("Twin Throw", 260, "Throws a second axe at the next zombie.", extraShots: 1),
+                        Tier("Axe Storm", 700, "Two more axes, and every axe cuts through a zombie.", extraShots: 2, pierce: 1)),
+                },
+                ["ArcherTower"] = new[]
+                {
+                    Route("Marksman", new Color(0.96f, 0.5f, 0.44f),
+                        Tier("Broadheads", 150, "+3 damage.", damage: 3f),
+                        Tier("Piercing Shot", 280, "Arrows pass through 2 zombies and fly faster.", pierce: 2, speed: 1.2f),
+                        Tier("Deadeye", 750, "+12 damage, +2 pierce, +4 range.", damage: 12f, pierce: 2, range: 4f)),
+                    Route("Volley", new Color(0.62f, 0.9f, 0.42f),
+                        Tier("Quick Draw", 140, "Shoots 40% faster.", rate: 1.4f),
+                        Tier("Double Nock", 300, "Looses a second arrow at the next zombie.", extraShots: 1),
+                        Tier("Arrow Rain", 720, "Two more arrows per volley, 50% faster.", extraShots: 2, rate: 1.5f)),
+                },
+                ["MageSpire"] = new[]
+                {
+                    Route("Pyromancer", new Color(1f, 0.6f, 0.26f),
+                        Tier("Wider Blast", 160, "+1 m splash.", splash: 1f),
+                        Tier("Fireball", 340, "+6 damage.", damage: 6f),
+                        Tier("Meteor", 850, "+14 damage, +1.5 m splash.", damage: 14f, splash: 1.5f)),
+                    Route("Frost", new Color(0.5f, 0.86f, 1f),
+                        Tier("Chill", 150, "Hits slow zombies by 30% for 1.5 s.", slow: 0.3f, slowDuration: 1.5f),
+                        Tier("Quick Cast", 300, "Casts 60% faster.", rate: 1.6f),
+                        Tier("Blizzard", 750, "Slows by 55% for 2.5 s, casts faster, +1 m splash.", slow: 0.55f, slowDuration: 2.5f, rate: 1.4f, splash: 1f)),
+                },
+            };
+            foreach (Tower tower in towers)
+            {
+                if (!paths.TryGetValue(tower.name, out UpgradePath[] towerPaths)) continue;
+                tower.Stats.paths = towerPaths;
+                EditorUtility.SetDirty(tower.Stats);
+            }
+        }
+
+        /// <summary>Low drifting mist over the town and green wisps above the graveyard.</summary>
+        private static void BuildAmbience()
+        {
+            (Material additive, Material alpha, _) = BuildVfxMaterials();
+            GameObject ambience = new GameObject("Ambience");
+
+            GameObject mist = new GameObject("Ground Mist");
+            mist.transform.SetParent(ambience.transform);
+            mist.transform.position = new Vector3(-1f, 0.6f, 1f);
+            AmbientParticles(mist, alpha, new Vector3(64f, 0.6f, 40f), new Color(0.75f, 0.8f, 0.9f, 0.09f), 70, 9f, new Vector2(3.5f, 7f), new Vector2(0.15f, 0.4f), 0f);
+
+            GameObject wisps = new GameObject("Grave Wisps");
+            wisps.transform.SetParent(ambience.transform);
+            wisps.transform.position = new Vector3(-22f, 0.8f, 9f);
+            AmbientParticles(wisps, additive, new Vector3(9f, 1f, 9f), new Color(0.45f, 1f, 0.5f, 0.85f), 30, 3f, new Vector2(0.08f, 0.18f), new Vector2(0.1f, 0.35f), -0.05f);
+        }
+
+        private static void AmbientParticles(GameObject go, Material material, Vector3 box, Color color, int maxParticles, float lifetime,
+            Vector2 size, Vector2 speed, float gravity)
+        {
+            ParticleSystem ps = go.AddComponent<ParticleSystem>();
+            ParticleSystem.MainModule main = ps.main;
+            main.loop = true;
+            main.prewarm = true;
+            main.duration = lifetime;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(lifetime * 0.7f, lifetime);
+            main.startSize = new ParticleSystem.MinMaxCurve(size.x, size.y);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(speed.x, speed.y);
+            main.startColor = color;
+            main.gravityModifier = gravity;
+            main.maxParticles = maxParticles;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+
+            ParticleSystem.EmissionModule emission = ps.emission;
+            emission.rateOverTime = maxParticles / lifetime;
+
+            ParticleSystem.ShapeModule shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Box;
+            shape.scale = box;
+
+            ParticleSystem.ColorOverLifetimeModule colour = ps.colorOverLifetime;
+            colour.enabled = true;
+            Gradient fade = new Gradient();
+            fade.SetKeys(
+                new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1f, 0.3f), new GradientAlphaKey(1f, 0.7f), new GradientAlphaKey(0f, 1f) });
+            colour.color = fade;
+
+            ParticleSystem.NoiseModule noise = ps.noise;
+            noise.enabled = true;
+            noise.strength = 0.3f;
+            noise.frequency = 0.2f;
+
+            ParticleSystemRenderer renderer = go.GetComponent<ParticleSystemRenderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.sortingFudge = 10f;
+        }
+
         /// <summary>
         /// Hero prefab with one child per armour level (1, 5, 10). Level 1 is shown; hero code switches them.
         /// Not placed in the scene yet: the hero's gameplay isn't built.
@@ -720,7 +1044,7 @@ namespace TowerDefense.EditorTools
             return points.ToArray();
         }
 
-        private static Mesh BuildRoadMesh(Vector3[] points, float width)
+        private static Mesh BuildRoadMesh(Vector3[] points, float width, float height, string assetName)
         {
             var vertices = new List<Vector3>();
             var uvs = new List<Vector2>();
@@ -734,7 +1058,7 @@ namespace TowerDefense.EditorTools
                 forward.y = 0f;
                 Vector3 side = Vector3.Cross(Vector3.up, forward.normalized) * (width / 2f);
                 if (i > 0) distance += Vector3.Distance(points[i], points[i - 1]);
-                Vector3 lift = Vector3.up * 0.03f;
+                Vector3 lift = Vector3.up * height;
                 vertices.Add(points[i] - side + lift);
                 vertices.Add(points[i] + side + lift);
                 float v = distance / width;
@@ -744,14 +1068,14 @@ namespace TowerDefense.EditorTools
                 int b = vertices.Count - 4;
                 triangles.AddRange(new[] { b, b + 2, b + 1, b + 1, b + 2, b + 3 });
             }
-            var mesh = new Mesh { name = "Road" };
+            var mesh = new Mesh { name = assetName };
             mesh.SetVertices(vertices);
             mesh.SetUVs(0, uvs);
             mesh.SetTriangles(triangles, 0);
             mesh.RecalculateNormals();
             mesh.RecalculateTangents();
             mesh.RecalculateBounds();
-            string path = "Assets/Models/Town/Road.asset";
+            string path = $"Assets/Models/Town/{assetName}.asset";
             Directory.CreateDirectory("Assets/Models/Town");
             AssetDatabase.DeleteAsset(path);
             AssetDatabase.CreateAsset(mesh, path);
@@ -814,6 +1138,13 @@ namespace TowerDefense.EditorTools
             new TownPiece("Lantern", -14.2f, 6.8f, 0f), new TownPiece("Lantern", -9.8f, -5.8f, 0f),
             new TownPiece("Lantern", 1.2f, 0.5f, 0f), new TownPiece("Lantern", 6.8f, 9.2f, 180f),
             new TownPiece("Lantern", 11.2f, -2.8f, 0f), new TownPiece("Lantern", 15.8f, -7.2f, 0f),
+
+            // Outskirts: dead trees and old graves frame the corners so the map doesn't end in bare grass.
+            new TownPiece("DeadTree", -29f, -13f, 60f, 1.2f), new TownPiece("DeadTree", -9f, 18f, 140f, 1.1f),
+            new TownPiece("DeadTree", 25f, 15f, 250f, 1.15f), new TownPiece("DeadTree", 24f, -16f, 10f, 1.1f),
+            new TownPiece("DeadTree", -29f, 17f, 300f), new TownPiece("DeadTree", 8f, 17.5f, 80f, 0.9f),
+            new TownPiece("Gravestones", -28.5f, -4f, 100f, 0.7f), new TownPiece("Gravestones", -12.5f, -16.5f, 30f, 0.65f),
+            new TownPiece("Barrels", 22.5f, 11f, 15f, 0.9f), new TownPiece("Barrels", -10.5f, 16f, -60f, 0.85f),
         };
 
         private static void BuildTown()

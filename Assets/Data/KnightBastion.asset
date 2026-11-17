@@ -20,4 +20,83 @@ MonoBehaviour:
   range: 9
   damage: 2
   splashRadius: 0
+  paths:
+  - name: Berserker
+    color: {r: 0.97, g: 0.42, b: 0.34, a: 1}
+    tiers:
+    - name: Whetted Axes
+      description: Sharper edges. +1 damage.
+      cost: 110
+      damageBonus: 1
+      rateMultiplier: 1
+      rangeBonus: 0
+      splashBonus: 0
+      projectileSpeedMultiplier: 1
+      extraShots: 0
+      pierce: 0
+      slow: 0
+      slowDuration: 0
+    - name: Battle Frenzy
+      description: Throws 50% faster.
+      cost: 240
+      damageBonus: 0
+      rateMultiplier: 1.5
+      rangeBonus: 0
+      splashBonus: 0
+      projectileSpeedMultiplier: 1
+      extraShots: 0
+      pierce: 0
+      slow: 0
+      slowDuration: 0
+    - name: Whirlwind Warlord
+      description: +3 damage, 50% faster, +2 range.
+      cost: 650
+      damageBonus: 3
+      rateMultiplier: 1.5
+      rangeBonus: 2
+      splashBonus: 0
+      projectileSpeedMultiplier: 1
+      extraShots: 0
+      pierce: 0
+      slow: 0
+      slowDuration: 0
+  - name: Axe Master
+    color: {r: 0.98, g: 0.8, b: 0.32, a: 1}
+    tiers:
+    - name: Long Arm
+      description: +2.5 range.
+      cost: 100
+      damageBonus: 0
+      rateMultiplier: 1
+      rangeBonus: 2.5
+      splashBonus: 0
+      projectileSpeedMultiplier: 1
+      extraShots: 0
+      pierce: 0
+      slow: 0
+      slowDuration: 0
+    - name: Twin Throw
+      description: Throws a second axe at the next zombie.
+      cost: 260
+      damageBonus: 0
+      rateMultiplier: 1
+      rangeBonus: 0
+      splashBonus: 0
+      projectileSpeedMultiplier: 1
+      extraShots: 1
+      pierce: 0
+      slow: 0
+      slowDuration: 0
+    - name: Axe Storm
+      description: Two more axes, and every axe cuts through a zombie.
+      cost: 700
+      damageBonus: 0
+      rateMultiplier: 1
+      rangeBonus: 0
+      splashBonus: 0
+      projectileSpeedMultiplier: 1
+      extraShots: 2
+      pierce: 1
+      slow: 0
+      slowDuration: 0
   fireSound: {fileID: 8300000, guid: 186b9ceec1f67421f880f4cce46e1334, type: 3}

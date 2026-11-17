@@ -20,4 +20,83 @@ MonoBehaviour:
   range: 20
   damage: 5
   splashRadius: 0
+  paths:
+  - name: Marksman
+    color: {r: 0.96, g: 0.5, b: 0.44, a: 1}
+    tiers:
+    - name: Broadheads
+      description: +3 damage.
+      cost: 150
+      damageBonus: 3
+      rateMultiplier: 1
+      rangeBonus: 0
+      splashBonus: 0
+      projectileSpeedMultiplier: 1
+      extraShots: 0
+      pierce: 0
+      slow: 0
+      slowDuration: 0
+    - name: Piercing Shot
+      description: Arrows pass through 2 zombies and fly faster.
+      cost: 280
+      damageBonus: 0
+      rateMultiplier: 1
+      rangeBonus: 0
+      splashBonus: 0
+      projectileSpeedMultiplier: 1.2
+      extraShots: 0
+      pierce: 2
+      slow: 0
+      slowDuration: 0
+    - name: Deadeye
+      description: +12 damage, +2 pierce, +4 range.
+      cost: 750
+      damageBonus: 12
+      rateMultiplier: 1
+      rangeBonus: 4
+      splashBonus: 0
+      projectileSpeedMultiplier: 1
+      extraShots: 0
+      pierce: 2
+      slow: 0
+      slowDuration: 0
+  - name: Volley
+    color: {r: 0.62, g: 0.9, b: 0.42, a: 1}
+    tiers:
+    - name: Quick Draw
+      description: Shoots 40% faster.
+      cost: 140
+      damageBonus: 0
+      rateMultiplier: 1.4
+      rangeBonus: 0
+      splashBonus: 0
+      projectileSpeedMultiplier: 1
+      extraShots: 0
+      pierce: 0
+      slow: 0
+      slowDuration: 0
+    - name: Double Nock
+      description: Looses a second arrow at the next zombie.
+      cost: 300
+      damageBonus: 0
+      rateMultiplier: 1
+      rangeBonus: 0
+      splashBonus: 0
+      projectileSpeedMultiplier: 1
+      extraShots: 1
+      pierce: 0
+      slow: 0
+      slowDuration: 0
+    - name: Arrow Rain
+      description: Two more arrows per volley, 50% faster.
+      cost: 720
+      damageBonus: 0
+      rateMultiplier: 1.5
+      rangeBonus: 0
+      splashBonus: 0
+      projectileSpeedMultiplier: 1
+      extraShots: 2
+      pierce: 0
+      slow: 0
+      slowDuration: 0
   fireSound: {fileID: 8300000, guid: 90088069862ff487fbf182a6fc9900c1, type: 3}

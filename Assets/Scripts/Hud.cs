@@ -58,6 +58,19 @@ namespace TowerDefense
         private TMP_Text waveTitle, waveSubtitle, speedLabel;
         private GameObject endScreen;
         private TMP_Text endTitle, endDetail, endWaves, endKills;
+        private RectTransform upgradePanel;
+        private Image upgradeAccent;
+        private TMP_Text upgradeName, upgradeStats, sellLabel;
+        private PathView[] pathViews;
+
+        private class PathView
+        {
+            public TMP_Text Title, Next, Description, ButtonLabel;
+            public Image[] Pips;
+            public Image ButtonImage;
+            public Button Button;
+            public CanvasGroup ButtonGroup;
+        }
 
         private struct Card
         {
@@ -95,6 +108,7 @@ namespace TowerDefense
             BuildHelp(root);
             BuildTowerCards(root);
             BuildWaveControls(root);
+            BuildUpgradePanel(root);
             BuildMessages(root);
             BuildEndScreen(root);
         }
@@ -118,13 +132,14 @@ namespace TowerDefense
 
         private void BuildHelp(RectTransform root)
         {
-            helpCard = Box("Help", root, Anchor.TopLeft, new Vector2(18f, -18f), new Vector2(430f, 232f), Panel);
+            helpCard = Box("Help", root, Anchor.TopLeft, new Vector2(18f, -18f), new Vector2(430f, 270f), Panel);
             Label(helpCard, "HOW TO BUILD", 18, Gold, TextAlignmentOptions.TopLeft, new Vector2(22f, -16f), new Vector2(390f, 26f), true, 4f);
             Step(helpCard, 0, "1", "Pick a tower: press <b>1 2 3</b> or click a card");
             Step(helpCard, 1, "2", "<b>Left-click</b> open ground. Green means OK");
             Step(helpCard, 2, "3", "<b>Right-click</b> or <b>Esc</b> to cancel");
+            Step(helpCard, 3, "4", "<b>Click a tower</b> to upgrade: <b>Q</b> / <b>E</b>");
             Label(helpCard, "Not on the road, houses, or next to another tower.\nIf one zombie reaches the town gate, you lose.",
-                16, Muted, TextAlignmentOptions.TopLeft, new Vector2(22f, -172f), new Vector2(390f, 50f), false, 0f);
+                16, Muted, TextAlignmentOptions.TopLeft, new Vector2(22f, -210f), new Vector2(390f, 50f), false, 0f);
             Label(helpCard, "H  hide", 14, Muted, TextAlignmentOptions.TopRight, new Vector2(-18f, -18f), new Vector2(100f, 20f), false, 0f, Anchor.TopRight);
 
             helpChip = Box("Help Chip", root, Anchor.TopLeft, new Vector2(18f, -18f), new Vector2(150f, 44f), Panel);
@@ -205,6 +220,119 @@ namespace TowerDefense
             Label(speed, "SPEED  F", 12, Muted, TextAlignmentOptions.Center, new Vector2(0f, -22f), new Vector2(92f, 18f), false, 1f, Anchor.Center);
         }
 
+        private void BuildUpgradePanel(RectTransform root)
+        {
+            const float width = 380f;
+            upgradePanel = Box("Upgrades", root, Anchor.Right, new Vector2(-18f, 50f), new Vector2(width, 492f), Panel);
+            upgradeAccent = Box("Accent", upgradePanel, Anchor.Top, new Vector2(0f, -8f), new Vector2(width - 40f, 4f), Gold, 2f).GetComponent<Image>();
+            upgradeName = Label(upgradePanel, "", 26, Text, TextAlignmentOptions.TopLeft, new Vector2(22f, -22f), new Vector2(260f, 32f), true, 1f);
+            Label(upgradePanel, "Esc  close", 14, Muted, TextAlignmentOptions.TopRight, new Vector2(-20f, -30f), new Vector2(100f, 20f), false, 0f, Anchor.TopRight);
+            upgradeStats = Label(upgradePanel, "", 15, Muted, TextAlignmentOptions.TopLeft, new Vector2(22f, -60f), new Vector2(width - 44f, 44f), false, 0f);
+
+            string[] keys = { "Q", "E" };
+            pathViews = new PathView[2];
+            for (int p = 0; p < 2; p++)
+            {
+                int path = p;
+                RectTransform section = Box("Path", upgradePanel, Anchor.TopLeft, new Vector2(14f, -112f - p * 160f), new Vector2(width - 28f, 150f), PanelRaised);
+                PathView view = new PathView();
+                view.Title = Label(section, "", 18, Text, TextAlignmentOptions.TopLeft, new Vector2(14f, -10f), new Vector2(220f, 24f), true, 2f);
+                view.Pips = new Image[TowerStats.MaxTier];
+                for (int k = 0; k < TowerStats.MaxTier; k++)
+                    view.Pips[k] = Box("Pip", section, Anchor.TopRight, new Vector2(-14f - (TowerStats.MaxTier - 1 - k) * 30f, -15f), new Vector2(24f, 12f), Muted, 6f).GetComponent<Image>();
+                view.Next = Label(section, "", 17, Text, TextAlignmentOptions.TopLeft, new Vector2(14f, -38f), new Vector2(width - 56f, 24f), true, 0f);
+                view.Description = Label(section, "", 14, Muted, TextAlignmentOptions.TopLeft, new Vector2(14f, -62f), new Vector2(width - 56f, 38f), false, 0f);
+
+                RectTransform buy = Box("Buy", section, Anchor.Bottom, new Vector2(0f, 10f), new Vector2(width - 56f, 38f), Gold, 10f);
+                view.ButtonImage = buy.GetComponent<Image>();
+                view.Button = buy.gameObject.AddComponent<Button>();
+                view.Button.targetGraphic = view.ButtonImage;
+                view.Button.onClick.AddListener(() => placer.Upgrade(path));
+                view.ButtonGroup = buy.gameObject.AddComponent<CanvasGroup>();
+                view.ButtonLabel = Label(buy, "", 17, Ink, TextAlignmentOptions.Center, Vector2.zero, new Vector2(width - 56f, 38f), true, 1f, Anchor.Center);
+                RectTransform keyBadge = Box("Key", buy, Anchor.Left, new Vector2(6f, 0f), new Vector2(28f, 28f), new Color(0f, 0f, 0f, 0.35f), 8f);
+                Label(keyBadge, keys[p], 16, Text, TextAlignmentOptions.Center, Vector2.zero, new Vector2(28f, 28f), true, 0f, Anchor.Center);
+                pathViews[p] = view;
+            }
+
+            RectTransform sell = Box("Sell", upgradePanel, Anchor.Bottom, new Vector2(0f, 16f), new Vector2(width - 28f, 46f), new Color(0.45f, 0.14f, 0.12f, 0.95f), 10f);
+            Button sellButton = sell.gameObject.AddComponent<Button>();
+            sellButton.targetGraphic = sell.GetComponent<Image>();
+            sellButton.onClick.AddListener(() => placer.SellSelected());
+            sellLabel = Label(sell, "", 17, Text, TextAlignmentOptions.Center, Vector2.zero, new Vector2(width - 28f, 46f), true, 1f, Anchor.Center);
+
+            upgradePanel.gameObject.SetActive(false);
+        }
+
+        private void UpdateUpgradePanel(int gold)
+        {
+            Tower tower = placer.SelectedTower;
+            bool show = tower != null && !GameManager.Instance.IsFinished;
+            if (upgradePanel.gameObject.activeSelf != show) upgradePanel.gameObject.SetActive(show);
+            if (!show) return;
+
+            Color accent = AccentFor(tower.Stats);
+            upgradeAccent.color = accent;
+            upgradeName.text = tower.Stats.displayName;
+            upgradeName.color = accent;
+
+            string extras = "";
+            if (tower.SplashRadius > 0f) extras += $"Splash {tower.SplashRadius:0.#} m   ";
+            if (tower.ExtraShots > 0) extras += $"{tower.ExtraShots + 1} shots   ";
+            if (tower.Pierce > 0) extras += $"Pierce {tower.Pierce}   ";
+            if (tower.Slow > 0f) extras += $"Slow {tower.Slow * 100f:0}%   ";
+            upgradeStats.text = $"Damage <color=#F0EBE0>{tower.Damage:0.#}</color>   Rate <color=#F0EBE0>{tower.ShotsPerSecond:0.##}/s</color>   Range <color=#F0EBE0>{tower.Range:0.#}</color>"
+                + (extras.Length > 0 ? $"\n<color=#F0EBE0>{extras.TrimEnd()}</color>" : "");
+
+            for (int p = 0; p < pathViews.Length; p++)
+            {
+                PathView view = pathViews[p];
+                bool hasPath = p < tower.PathCount;
+                view.Title.transform.parent.gameObject.SetActive(hasPath);
+                if (!hasPath) continue;
+
+                UpgradePath path = tower.Stats.paths[p];
+                int tier = tower.Tier(p);
+                view.Title.text = path.name.ToUpperInvariant();
+                view.Title.color = path.color;
+                for (int k = 0; k < view.Pips.Length; k++)
+                    view.Pips[k].color = k < tier ? path.color : new Color(1f, 1f, 1f, 0.12f);
+
+                UpgradeTier next = tower.NextTier(p);
+                bool locked = tower.IsLocked(p);
+                if (next == null)
+                {
+                    UpgradeTier last = path.tiers[path.tiers.Length - 1];
+                    view.Next.text = last.name;
+                    view.Description.text = last.description;
+                    view.ButtonLabel.text = "MAXED";
+                }
+                else
+                {
+                    view.Next.text = $"<color=#9EA3AF>Tier {tier + 1}:</color> {next.name}";
+                    view.Description.text = next.description;
+                    view.ButtonLabel.text = locked ? "LOCKED BY OTHER PATH" : $"BUY   <color={(gold >= next.cost ? "#1F170D" : "#7A1E16")}>{next.cost} gold</color>";
+                }
+
+                bool canBuy = next != null && !locked && gold >= next.cost;
+                view.Button.interactable = next != null && !locked;
+                view.ButtonImage.color = next == null || locked ? PanelRaised : path.color;
+                view.ButtonLabel.color = next == null || locked ? Muted : Ink;
+                view.ButtonGroup.alpha = canBuy || next == null || locked ? 1f : 0.6f;
+            }
+
+            sellLabel.text = $"SELL   <color=#F5C24D>+{tower.SellValue} gold</color>   <color=#C9A9A4><size=80%>Del</size></color>";
+        }
+
+        private Color AccentFor(TowerStats stats)
+        {
+            for (int i = 0; i < placer.TowerTypeCount; i++)
+            {
+                if (placer.StatsFor(i) == stats) return TowerAccents[i % TowerAccents.Length];
+            }
+            return Gold;
+        }
+
         private void BuildMessages(RectTransform root)
         {
             hintBox = Box("Hint", root, Anchor.Bottom, new Vector2(0f, 150f), new Vector2(620f, 40f), Panel, 20f);
@@ -217,14 +345,21 @@ namespace TowerDefense
             toast.alpha = 0f;
             toastText = Label(toastBox, "", 20, Danger, TextAlignmentOptions.Center, Vector2.zero, new Vector2(460f, 48f), true, 0f, Anchor.Center);
 
-            RectTransform bannerRect = Rect("Wave Banner", root, Anchor.Top, new Vector2(0f, -150f), new Vector2(900f, 140f));
+            // A dark band with gold rules behind the title, so it reads over any part of the map.
+            RectTransform bannerRect = Box("Wave Banner", root, Anchor.Top, new Vector2(0f, -128f), new Vector2(760f, 150f), new Color(0.04f, 0.05f, 0.07f, 0.86f), 24f);
             banner = bannerRect.gameObject.AddComponent<CanvasGroup>();
             banner.blocksRaycasts = false;
+            banner.interactable = false;
             banner.alpha = 0f;
-            bannerTitle = Label(bannerRect, "", 64, Text, TextAlignmentOptions.Center, new Vector2(0f, 20f), new Vector2(900f, 80f), true, 10f, Anchor.Center);
-            bannerTitle.outlineWidth = 0.18f;
-            bannerTitle.outlineColor = new Color32(0, 0, 0, 200);
-            bannerSubtitle = Label(bannerRect, "", 22, Gold, TextAlignmentOptions.Center, new Vector2(0f, -36f), new Vector2(900f, 30f), true, 3f, Anchor.Center);
+            bannerRect.GetComponent<Image>().raycastTarget = false;
+            Image ruleTop = Box("Rule", bannerRect, Anchor.Top, new Vector2(0f, -12f), new Vector2(520f, 3f), Gold, 2f).GetComponent<Image>();
+            Image ruleBottom = Box("Rule", bannerRect, Anchor.Bottom, new Vector2(0f, 12f), new Vector2(520f, 3f), Gold, 2f).GetComponent<Image>();
+            ruleTop.raycastTarget = ruleBottom.raycastTarget = false;
+            bannerTitle = Label(bannerRect, "", 72, Text, TextAlignmentOptions.Center, new Vector2(0f, 16f), new Vector2(760f, 84f), true, 12f, Anchor.Center);
+            bannerTitle.outlineWidth = 0.2f;
+            bannerTitle.outlineColor = new Color32(0, 0, 0, 255);
+            bannerTitle.textWrappingMode = TextWrappingModes.NoWrap;
+            bannerSubtitle = Label(bannerRect, "", 22, Gold, TextAlignmentOptions.Center, new Vector2(0f, -40f), new Vector2(760f, 30f), true, 4f, Anchor.Center);
         }
 
         private void BuildEndScreen(RectTransform root)
@@ -279,6 +414,7 @@ namespace TowerDefense
 
             UpdateCards(gold, atCap);
             UpdateWaveControls(game);
+            UpdateUpgradePanel(gold);
             UpdateMessages(game);
             UpdateBanner();
 
@@ -346,9 +482,13 @@ namespace TowerDefense
                     toastTimer = ToastTime;
                     GameAudio.Play(GameAudio.Instance != null ? GameAudio.Instance.error : null, 0.7f, 0f);
                 }
-                else if (placer.LastResult == PlacementResult.Placed)
+                else if (placer.LastResult == PlacementResult.Placed || placer.LastResult == PlacementResult.Upgraded)
                 {
                     GameAudio.Play(GameAudio.Instance != null ? GameAudio.Instance.build : null, 0.8f);
+                }
+                else if (placer.LastResult == PlacementResult.Sold)
+                {
+                    Click();
                 }
             }
             toastTimer -= Time.unscaledDeltaTime;
@@ -409,13 +549,15 @@ namespace TowerDefense
                 case PlacementResult.OnPath: return "Can't build on the road";
                 case PlacementResult.TooCloseToTower: return "Too close to another tower";
                 case PlacementResult.Blocked: return "Something is in the way";
+                case PlacementResult.UpgradeLocked: return "Locked: the other path is past tier 1";
+                case PlacementResult.UpgradeMaxed: return "That path is fully upgraded";
                 default: return null;
             }
         }
 
         // ---------- Building blocks ----------
 
-        private enum Anchor { Top, TopLeft, TopRight, Bottom, BottomRight, Left, Center, Stretch }
+        private enum Anchor { Top, TopLeft, TopRight, Bottom, BottomRight, Left, Right, Center, Stretch }
 
         private static RectTransform Rect(string name, RectTransform parent, Anchor anchor, Vector2 position, Vector2 size)
         {
@@ -430,6 +572,7 @@ namespace TowerDefense
                 case Anchor.Bottom: a = new Vector2(0.5f, 0f); break;
                 case Anchor.BottomRight: a = new Vector2(1f, 0f); break;
                 case Anchor.Left: a = new Vector2(0f, 0.5f); break;
+                case Anchor.Right: a = new Vector2(1f, 0.5f); break;
                 case Anchor.Center: a = new Vector2(0.5f, 0.5f); break;
                 default:
                     rect.anchorMin = Vector2.zero;
@@ -475,7 +618,7 @@ namespace TowerDefense
             RectTransform cell = Rect(caption, bar, Anchor.Center, Vector2.zero, new Vector2(150f, 56f));
             Label(cell, caption, 12, Muted, TextAlignmentOptions.Center, new Vector2(0f, -2f), new Vector2(150f, 16f), true, 3f, Anchor.Top);
             TMP_Text value = Label(cell, "", 28, valueColor, TextAlignmentOptions.Center, new Vector2(coin ? 10f : 0f, 2f), new Vector2(140f, 36f), true, 0f, Anchor.Bottom);
-            if (coin) Box("Coin", cell, Anchor.Bottom, new Vector2(-34f, 13f), new Vector2(16f, 16f), Gold, 8f);
+            if (coin) Box("Coin", cell, Anchor.Bottom, new Vector2(-46f, 13f), new Vector2(16f, 16f), Gold, 8f);
             return value;
         }
 

@@ -4,9 +4,12 @@ using UnityEngine.InputSystem;
 
 namespace TowerDefense
 {
-    public enum PlacementResult { Placed, NoTowerSelected, GameFinished, TowerLimitReached, NotEnoughGold, OnPath, TooCloseToTower, Blocked }
+    public enum PlacementResult { Placed, NoTowerSelected, GameFinished, TowerLimitReached, NotEnoughGold, OnPath, TooCloseToTower, Blocked, Upgraded, UpgradeLocked, UpgradeMaxed, Sold }
 
-    /// <summary>Choose a tower with 1/2/3 or a HUD button, then left-click open ground to build it.</summary>
+    /// <summary>
+    /// Choose a tower with 1/2/3 or a HUD button, then left-click open ground to build it.
+    /// Left-click a built tower to select it: Q / E buy its upgrades, Delete sells it.
+    /// </summary>
     public class TowerPlacer : MonoBehaviour
     {
         private static readonly int BaseColor = Shader.PropertyToID("_BaseColor");
@@ -29,10 +32,14 @@ namespace TowerDefense
         private Transform preview;
         private Renderer previewRenderer;
         private LineRenderer rangeRing;
+        private LineRenderer selectionRing;
         private MaterialPropertyBlock previewBlock;
 
         public int MaxTowers => maxTowers;
         public int SelectedIndex { get; private set; } = -1;
+
+        /// <summary>The built tower whose upgrade panel is open, or null.</summary>
+        public Tower SelectedTower { get; private set; }
         public PlacementResult LastResult { get; private set; } = PlacementResult.NoTowerSelected;
 
         /// <summary>Counts placement clicks, so the HUD can show a message for each failed attempt.</summary>
@@ -50,19 +57,88 @@ namespace TowerDefense
                 if (keyboard.digit1Key.wasPressedThisFrame) Select(0);
                 if (keyboard.digit2Key.wasPressedThisFrame) Select(1);
                 if (keyboard.digit3Key.wasPressedThisFrame) Select(2);
-                if (keyboard.escapeKey.wasPressedThisFrame) Select(-1);
+                if (keyboard.escapeKey.wasPressedThisFrame) { Select(-1); SelectTower(null); }
+                if (SelectedTower != null)
+                {
+                    if (keyboard.qKey.wasPressedThisFrame) Upgrade(0);
+                    if (keyboard.eKey.wasPressedThisFrame) Upgrade(1);
+                    if (keyboard.deleteKey.wasPressedThisFrame || keyboard.backspaceKey.wasPressedThisFrame) SellSelected();
+                }
             }
 
             Mouse mouse = Mouse.current;
             if (mouse == null) return;
-            if (mouse.rightButton.wasPressedThisFrame) Select(-1);
+            if (mouse.rightButton.wasPressedThisFrame) { Select(-1); SelectTower(null); }
 
             bool overUi = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
-            bool onGround = TryGetGroundPoint(mouse.position.ReadValue(), out Vector3 point);
+            Vector2 pointer = mouse.position.ReadValue();
+            bool onGround = TryGetGroundPoint(pointer, out Vector3 point);
             UpdatePreview(onGround && !overUi, point);
+            UpdateSelectionRing();
 
-            if (onGround && !overUi && mouse.leftButton.wasPressedThisFrame)
+            if (overUi || !mouse.leftButton.wasPressedThisFrame) return;
+            Tower clicked = TowerUnder(pointer);
+            if (clicked != null)
+            {
+                Select(-1);
+                SelectTower(clicked == SelectedTower ? null : clicked);
+            }
+            else if (SelectedIndex >= 0 && onGround)
+            {
                 TryPlace(point);
+            }
+            else
+            {
+                SelectTower(null);
+            }
+        }
+
+        public void SelectTower(Tower tower)
+        {
+            if (tower != null && GameManager.Instance.IsFinished) tower = null;
+            SelectedTower = tower;
+        }
+
+        /// <summary>Buys the next tier on a path of the selected tower.</summary>
+        public PlacementResult Upgrade(int path)
+        {
+            Tower tower = SelectedTower;
+            if (tower == null || GameManager.Instance.IsFinished) return PlacementResult.NoTowerSelected;
+            if (tower.NextTier(path) == null) LastResult = PlacementResult.UpgradeMaxed;
+            else if (tower.IsLocked(path)) LastResult = PlacementResult.UpgradeLocked;
+            else LastResult = tower.TryUpgrade(path) ? PlacementResult.Upgraded : PlacementResult.NotEnoughGold;
+            Attempts++;
+            return LastResult;
+        }
+
+        public void SellSelected()
+        {
+            if (SelectedTower == null || GameManager.Instance.IsFinished) return;
+            SelectedTower.Sell();
+            SelectedTower = null;
+            LastResult = PlacementResult.Sold;
+            Attempts++;
+        }
+
+        private Tower TowerUnder(Vector2 screenPosition)
+        {
+            Ray ray = Camera.main.ScreenPointToRay(screenPosition);
+            if (!Physics.Raycast(ray, out RaycastHit hit, 500f, ~0, QueryTriggerInteraction.Ignore)) return null;
+            return hit.collider.GetComponentInParent<Tower>();
+        }
+
+        private void UpdateSelectionRing()
+        {
+            bool show = SelectedTower != null;
+            selectionRing.gameObject.SetActive(show);
+            if (!show) return;
+            selectionRing.transform.position = SelectedTower.transform.position + Vector3.up * 0.12f;
+            float range = SelectedTower.Range;
+            for (int i = 0; i < RingSegments; i++)
+            {
+                float angle = i * Mathf.PI * 2f / RingSegments;
+                selectionRing.SetPosition(i, new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * range);
+            }
         }
 
         public void Select(int index)
@@ -70,6 +146,7 @@ namespace TowerDefense
             SelectedIndex = index >= 0 && index < towerPrefabs.Length ? index : -1;
             LastResult = PlacementResult.NoTowerSelected;
             if (SelectedIndex < 0) return;
+            SelectedTower = null;
 
             TowerStats stats = StatsFor(SelectedIndex);
             preview.localScale = new Vector3(1.2f, stats.height / 2f, 1.2f);
@@ -90,6 +167,7 @@ namespace TowerDefense
             Tower prefab = towerPrefabs[SelectedIndex];
             Economy.Instance.TrySpend(prefab.Stats.cost);
             Instantiate(prefab, point, Quaternion.identity);
+            Vfx.Burst(point + Vector3.up * 0.3f, new Color(0.75f, 0.68f, 0.55f, 0.8f), 24, 3f, 0.9f, 0.9f, -0.1f, false);
             return LastResult;
         }
 
@@ -141,8 +219,22 @@ namespace TowerDefense
             rangeRing.positionCount = RingSegments;
             rangeRing.startWidth = rangeRing.endWidth = 0.15f;
 
+            GameObject selection = new GameObject("Selection Ring");
+            selection.transform.SetParent(transform, false);
+            selectionRing = selection.AddComponent<LineRenderer>();
+            selectionRing.sharedMaterial = previewMaterial;
+            selectionRing.useWorldSpace = false;
+            selectionRing.loop = true;
+            selectionRing.positionCount = RingSegments;
+            selectionRing.startWidth = selectionRing.endWidth = 0.15f;
+            selectionRing.startColor = selectionRing.endColor = new Color(1f, 0.85f, 0.4f);
+            MaterialPropertyBlock gold = new MaterialPropertyBlock();
+            gold.SetColor(BaseColor, new Color(1f, 0.85f, 0.4f));
+            selectionRing.SetPropertyBlock(gold);
+
             column.SetActive(false);
             ring.SetActive(false);
+            selection.SetActive(false);
         }
 
         private void UpdatePreview(bool hasPoint, Vector3 point)

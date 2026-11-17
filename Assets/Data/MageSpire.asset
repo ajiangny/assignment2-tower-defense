@@ -20,4 +20,83 @@ MonoBehaviour:
   range: 13
   damage: 8
   splashRadius: 2.5
+  paths:
+  - name: Pyromancer
+    color: {r: 1, g: 0.6, b: 0.26, a: 1}
+    tiers:
+    - name: Wider Blast
+      description: +1 m splash.
+      cost: 160
+      damageBonus: 0
+      rateMultiplier: 1
+      rangeBonus: 0
+      splashBonus: 1
+      projectileSpeedMultiplier: 1
+      extraShots: 0
+      pierce: 0
+      slow: 0
+      slowDuration: 0
+    - name: Fireball
+      description: +6 damage.
+      cost: 340
+      damageBonus: 6
+      rateMultiplier: 1
+      rangeBonus: 0
+      splashBonus: 0
+      projectileSpeedMultiplier: 1
+      extraShots: 0
+      pierce: 0
+      slow: 0
+      slowDuration: 0
+    - name: Meteor
+      description: +14 damage, +1.5 m splash.
+      cost: 850
+      damageBonus: 14
+      rateMultiplier: 1
+      rangeBonus: 0
+      splashBonus: 1.5
+      projectileSpeedMultiplier: 1
+      extraShots: 0
+      pierce: 0
+      slow: 0
+      slowDuration: 0
+  - name: Frost
+    color: {r: 0.5, g: 0.86, b: 1, a: 1}
+    tiers:
+    - name: Chill
+      description: Hits slow zombies by 30% for 1.5 s.
+      cost: 150
+      damageBonus: 0
+      rateMultiplier: 1
+      rangeBonus: 0
+      splashBonus: 0
+      projectileSpeedMultiplier: 1
+      extraShots: 0
+      pierce: 0
+      slow: 0.3
+      slowDuration: 1.5
+    - name: Quick Cast
+      description: Casts 60% faster.
+      cost: 300
+      damageBonus: 0
+      rateMultiplier: 1.6
+      rangeBonus: 0
+      splashBonus: 0
+      projectileSpeedMultiplier: 1
+      extraShots: 0
+      pierce: 0
+      slow: 0
+      slowDuration: 0
+    - name: Blizzard
+      description: Slows by 55% for 2.5 s, casts faster, +1 m splash.
+      cost: 750
+      damageBonus: 0
+      rateMultiplier: 1.4
+      rangeBonus: 0
+      splashBonus: 1
+      projectileSpeedMultiplier: 1
+      extraShots: 0
+      pierce: 0
+      slow: 0.55
+      slowDuration: 2.5
   fireSound: {fileID: 8300000, guid: 870b572c67fd1407ea013115947a6f5c, type: 3}

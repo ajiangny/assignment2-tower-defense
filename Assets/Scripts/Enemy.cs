@@ -22,6 +22,8 @@ namespace TowerDefense
         private int nextWaypoint;
         private float hp;
         private float holdTime;
+        private float slow;
+        private float slowTimer;
 
         /// <summary>Raised on every hit that doesn't kill.</summary>
         public event System.Action Damaged;
@@ -31,6 +33,18 @@ namespace TowerDefense
 
         public EnemyStats Stats => stats;
         public float Hp => hp;
+
+        /// <summary>Speed after any slow from a frost upgrade.</summary>
+        public float CurrentSpeed => stats.speed * (1f - slow);
+        public bool IsSlowed => slowTimer > 0f;
+
+        /// <summary>Slows by a fraction for a while. The strongest current slow wins; the boss shrugs off half of it.</summary>
+        public void ApplySlow(float amount, float duration)
+        {
+            if (stats.maxHp >= 300f) amount *= 0.5f;
+            if (amount >= slow || slowTimer <= 0f) slow = amount;
+            slowTimer = Mathf.Max(slowTimer, duration);
+        }
 
         /// <summary>Current world-space velocity, for predictive aiming.</summary>
         public Vector3 Velocity { get; private set; }
@@ -95,7 +109,14 @@ namespace TowerDefense
                 return;
             }
 
-            float remaining = stats.speed * Time.fixedDeltaTime;
+            if (slowTimer > 0f)
+            {
+                slowTimer -= Time.fixedDeltaTime;
+                if (slowTimer <= 0f) slow = 0f;
+            }
+
+            float speed = CurrentSpeed;
+            float remaining = speed * Time.fixedDeltaTime;
             Vector3 position = body.position;
             Vector3 direction = Vector3.zero;
 
@@ -121,7 +142,7 @@ namespace TowerDefense
                 }
             }
 
-            Velocity = direction * stats.speed;
+            Velocity = direction * speed;
             body.MovePosition(position);
 
             Vector3 flat = new Vector3(direction.x, 0f, direction.z);
