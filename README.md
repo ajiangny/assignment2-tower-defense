@@ -146,6 +146,8 @@ Extra shots go to the next zombies in the same order (for First, the next closes
 | **Armored Revenant** | 2.2 | 30 | A rusted knight with sword and shield; every hit does 2 less damage (minimum 1) | 15 |
 | **Zombie King** | 1.2 | 600 | The wave 20 boss, with a crown and skull scepter; roars when he appears | 200 |
 
+**Health bars** (`HealthBar`): a small bar floats over each zombie and faces the camera. It stays hidden until the zombie is first hit, so a fresh horde stays uncluttered. It shades from green through yellow to red, a pale chip trails behind it to show the damage just taken, and its backing turns frosty blue while the zombie is slowed. The Zombie King's bar is wider and always shown.
+
 Every zombie shares one look: chibi proportions, green skin, glowing yellow eyes and an exposed brain on the side of the head. They walk with their own animation (a lurching shamble, a frantic run or a heavy stomp) whose pace follows their speed, squash when hit, and play a death animation before the body disappears.
 
 ### Waves & economy

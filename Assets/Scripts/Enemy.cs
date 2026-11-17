@@ -59,6 +59,7 @@ namespace TowerDefense
         {
             body = GetComponent<Rigidbody>();
             hp = stats.maxHp;
+            if (GetComponent<HealthBar>() == null) gameObject.AddComponent<HealthBar>();
         }
 
         private void OnEnable() => active.Add(this);
