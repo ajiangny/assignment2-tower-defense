@@ -4,11 +4,11 @@ using UnityEngine.InputSystem;
 
 namespace TowerDefense
 {
-    public enum PlacementResult { Placed, NoTowerSelected, GameFinished, TowerLimitReached, NotEnoughGold, OnPath, TooCloseToTower, Blocked, Upgraded, UpgradeLocked, UpgradeMaxed, Sold }
+    public enum PlacementResult { Placed, NoTowerSelected, GameFinished, TowerLimitReached, NotEnoughGold, OnPath, TooCloseToTower, Blocked, Upgraded, UpgradeLocked, UpgradeMaxed, Sold, TargetingChanged }
 
     /// <summary>
     /// Choose a tower with 1/2/3 or a HUD button, then left-click open ground to build it.
-    /// Left-click a built tower to select it: Q / E buy its upgrades, Delete sells it.
+    /// Left-click a built tower to select it: Q / E buy its upgrades, Tab changes its targeting, Delete sells it.
     /// </summary>
     public class TowerPlacer : MonoBehaviour
     {
@@ -62,6 +62,7 @@ namespace TowerDefense
                 {
                     if (keyboard.qKey.wasPressedThisFrame) Upgrade(0);
                     if (keyboard.eKey.wasPressedThisFrame) Upgrade(1);
+                    if (keyboard.tabKey.wasPressedThisFrame) CycleTargeting(keyboard.shiftKey.isPressed ? -1 : 1);
                     if (keyboard.deleteKey.wasPressedThisFrame || keyboard.backspaceKey.wasPressedThisFrame) SellSelected();
                 }
             }
@@ -109,6 +110,15 @@ namespace TowerDefense
             else LastResult = tower.TryUpgrade(path) ? PlacementResult.Upgraded : PlacementResult.NotEnoughGold;
             Attempts++;
             return LastResult;
+        }
+
+        /// <summary>Steps the selected tower's targeting mode (First, Last, Strong, Close).</summary>
+        public void CycleTargeting(int step)
+        {
+            if (SelectedTower == null || GameManager.Instance.IsFinished) return;
+            SelectedTower.CycleTargeting(step);
+            LastResult = PlacementResult.TargetingChanged;
+            Attempts++;
         }
 
         public void SellSelected()

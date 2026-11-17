@@ -3,6 +3,19 @@ using UnityEngine;
 
 namespace TowerDefense
 {
+    /// <summary>Which zombie in range a tower shoots, as in Bloons TD 6.</summary>
+    public enum TargetMode
+    {
+        /// <summary>Furthest along the road: closest to the town gate.</summary>
+        First,
+        /// <summary>Least far along the road: just out of the graveyard.</summary>
+        Last,
+        /// <summary>Most hit points left.</summary>
+        Strong,
+        /// <summary>Nearest to the tower.</summary>
+        Close,
+    }
+
     /// <summary>
     /// Fires at the enemy closest to the exit, leading it based on its velocity.
     /// Has two upgrade paths (see <see cref="TowerStats.paths"/>): one can reach tier 3, the other stops at tier 1.
@@ -37,6 +50,16 @@ namespace TowerDefense
         private float recoil;
         private LineRenderer baseRing;
         private ParticleSystem aura;
+
+        /// <summary>Which zombie in range to shoot. Extra shots go to the next ones in the same order.</summary>
+        public TargetMode Targeting { get; set; } = TargetMode.First;
+
+        /// <summary>Steps to the next (or previous) targeting mode.</summary>
+        public void CycleTargeting(int step = 1)
+        {
+            int count = System.Enum.GetValues(typeof(TargetMode)).Length;
+            Targeting = (TargetMode)(((int)Targeting + step % count + count) % count);
+        }
 
         /// <summary>When false, aims at the target's current position. Used to measure predictive aim.</summary>
         public bool PredictiveAim { get; set; } = true;
@@ -131,7 +154,7 @@ namespace TowerDefense
             return aimPoint;
         }
 
-        /// <summary>Every enemy in range, closest to the exit first. One leak ends the game.</summary>
+        /// <summary>Every enemy in range, best target first for the current <see cref="Targeting"/> mode.</summary>
         private void FindTargets()
         {
             targets.Clear();
@@ -141,7 +164,25 @@ namespace TowerDefense
                 if ((enemy.transform.position - head.position).sqrMagnitude <= sqrRange)
                     targets.Add(enemy);
             }
-            if (targets.Count > 1) targets.Sort((a, b) => b.PathProgress.CompareTo(a.PathProgress));
+            if (targets.Count < 2) return;
+
+            Vector3 origin = head.position;
+            switch (Targeting)
+            {
+                case TargetMode.First:
+                    targets.Sort((a, b) => b.PathProgress.CompareTo(a.PathProgress));
+                    break;
+                case TargetMode.Last:
+                    targets.Sort((a, b) => a.PathProgress.CompareTo(b.PathProgress));
+                    break;
+                case TargetMode.Strong:
+                    // Ties (a group of the same type) go to the one closest to the gate.
+                    targets.Sort((a, b) => b.Hp != a.Hp ? b.Hp.CompareTo(a.Hp) : b.PathProgress.CompareTo(a.PathProgress));
+                    break;
+                case TargetMode.Close:
+                    targets.Sort((a, b) => (a.transform.position - origin).sqrMagnitude.CompareTo((b.transform.position - origin).sqrMagnitude));
+                    break;
+            }
         }
 
         private void Fire(Vector3 aimPoint)

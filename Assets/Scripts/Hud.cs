@@ -60,7 +60,7 @@ namespace TowerDefense
         private TMP_Text endTitle, endDetail, endWaves, endKills;
         private RectTransform upgradePanel;
         private Image upgradeAccent;
-        private TMP_Text upgradeName, upgradeStats, sellLabel;
+        private TMP_Text upgradeName, upgradeStats, sellLabel, targetingLabel;
         private PathView[] pathViews;
 
         private class PathView
@@ -137,7 +137,7 @@ namespace TowerDefense
             Step(helpCard, 0, "1", "Pick a tower: press <b>1 2 3</b> or click a card");
             Step(helpCard, 1, "2", "<b>Left-click</b> open ground. Green means OK");
             Step(helpCard, 2, "3", "<b>Right-click</b> or <b>Esc</b> to cancel");
-            Step(helpCard, 3, "4", "<b>Click a tower</b> to upgrade: <b>Q</b> / <b>E</b>");
+            Step(helpCard, 3, "4", "<b>Click a tower</b>: <b>Q</b>/<b>E</b> upgrade, <b>Tab</b> target");
             Label(helpCard, "Not on the road, houses, or next to another tower.\nIf one zombie reaches the town gate, you lose.",
                 16, Muted, TextAlignmentOptions.TopLeft, new Vector2(22f, -210f), new Vector2(390f, 50f), false, 0f);
             Label(helpCard, "H  hide", 14, Muted, TextAlignmentOptions.TopRight, new Vector2(-18f, -18f), new Vector2(100f, 20f), false, 0f, Anchor.TopRight);
@@ -223,18 +223,26 @@ namespace TowerDefense
         private void BuildUpgradePanel(RectTransform root)
         {
             const float width = 380f;
-            upgradePanel = Box("Upgrades", root, Anchor.Right, new Vector2(-18f, 50f), new Vector2(width, 492f), Panel);
+            upgradePanel = Box("Upgrades", root, Anchor.Right, new Vector2(-18f, 50f), new Vector2(width, 540f), Panel);
             upgradeAccent = Box("Accent", upgradePanel, Anchor.Top, new Vector2(0f, -8f), new Vector2(width - 40f, 4f), Gold, 2f).GetComponent<Image>();
             upgradeName = Label(upgradePanel, "", 26, Text, TextAlignmentOptions.TopLeft, new Vector2(22f, -22f), new Vector2(260f, 32f), true, 1f);
             Label(upgradePanel, "Esc  close", 14, Muted, TextAlignmentOptions.TopRight, new Vector2(-20f, -30f), new Vector2(100f, 20f), false, 0f, Anchor.TopRight);
             upgradeStats = Label(upgradePanel, "", 15, Muted, TextAlignmentOptions.TopLeft, new Vector2(22f, -60f), new Vector2(width - 44f, 44f), false, 0f);
+
+            // Targeting: which zombie in range the tower shoots.
+            RectTransform targeting = Box("Targeting", upgradePanel, Anchor.TopLeft, new Vector2(14f, -108f), new Vector2(width - 28f, 44f), PanelRaised);
+            Label(targeting, "TARGET", 13, Muted, TextAlignmentOptions.MidlineLeft, new Vector2(14f, 0f), new Vector2(80f, 44f), true, 2f, Anchor.Left);
+            TargetArrow(targeting, "<", new Vector2(96f, 0f), -1);
+            targetingLabel = Label(targeting, "", 18, Text, TextAlignmentOptions.Center, new Vector2(132f, 0f), new Vector2(120f, 44f), true, 1f, Anchor.Left);
+            TargetArrow(targeting, ">", new Vector2(256f, 0f), 1);
+            Label(targeting, "Tab", 13, Muted, TextAlignmentOptions.MidlineRight, new Vector2(-12f, 0f), new Vector2(40f, 44f), false, 0f, Anchor.Right);
 
             string[] keys = { "Q", "E" };
             pathViews = new PathView[2];
             for (int p = 0; p < 2; p++)
             {
                 int path = p;
-                RectTransform section = Box("Path", upgradePanel, Anchor.TopLeft, new Vector2(14f, -112f - p * 160f), new Vector2(width - 28f, 150f), PanelRaised);
+                RectTransform section = Box("Path", upgradePanel, Anchor.TopLeft, new Vector2(14f, -160f - p * 160f), new Vector2(width - 28f, 150f), PanelRaised);
                 PathView view = new PathView();
                 view.Title = Label(section, "", 18, Text, TextAlignmentOptions.TopLeft, new Vector2(14f, -10f), new Vector2(220f, 24f), true, 2f);
                 view.Pips = new Image[TowerStats.MaxTier];
@@ -264,6 +272,26 @@ namespace TowerDefense
             upgradePanel.gameObject.SetActive(false);
         }
 
+        private void TargetArrow(RectTransform parent, string glyph, Vector2 position, int step)
+        {
+            RectTransform arrow = Box("Arrow", parent, Anchor.Left, position, new Vector2(32f, 32f), Panel, 8f);
+            Button button = arrow.gameObject.AddComponent<Button>();
+            button.targetGraphic = arrow.GetComponent<Image>();
+            button.onClick.AddListener(() => placer.CycleTargeting(step));
+            Label(arrow, glyph, 18, Gold, TextAlignmentOptions.Center, Vector2.zero, new Vector2(32f, 32f), true, 0f, Anchor.Center);
+        }
+
+        private static string TargetingName(TargetMode mode)
+        {
+            switch (mode)
+            {
+                case TargetMode.Last: return "LAST";
+                case TargetMode.Strong: return "STRONG";
+                case TargetMode.Close: return "CLOSE";
+                default: return "FIRST";
+            }
+        }
+
         private void UpdateUpgradePanel(int gold)
         {
             Tower tower = placer.SelectedTower;
@@ -275,6 +303,7 @@ namespace TowerDefense
             upgradeAccent.color = accent;
             upgradeName.text = tower.Stats.displayName;
             upgradeName.color = accent;
+            targetingLabel.text = TargetingName(tower.Targeting);
 
             string extras = "";
             if (tower.SplashRadius > 0f) extras += $"Splash {tower.SplashRadius:0.#} m   ";
@@ -486,7 +515,7 @@ namespace TowerDefense
                 {
                     GameAudio.Play(GameAudio.Instance != null ? GameAudio.Instance.build : null, 0.8f);
                 }
-                else if (placer.LastResult == PlacementResult.Sold)
+                else if (placer.LastResult == PlacementResult.Sold || placer.LastResult == PlacementResult.TargetingChanged)
                 {
                     Click();
                 }

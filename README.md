@@ -52,7 +52,7 @@ Every item from the assignment sheet, and where it's done. The project meets the
 ## Controls
 
 - **1 / 2 / 3** or click a card: choose the Knight Bastion, Archer Tower or Mage Spire. Click the selected card again to deselect.
-- **Left-click a built tower** to open its upgrade panel. **Q** / **E** (or the buttons) buy the next tier on the left / right path; **Delete** or **Backspace** sells it for 70% of the gold spent on it.
+- **Left-click a built tower** to open its upgrade panel. **Q** / **E** (or the buttons) buy the next tier on the left / right path; **Tab** (Shift+Tab backwards) or the arrows change its targeting; **Delete** or **Backspace** sells it for 70% of the gold spent on it.
 - **Left-click** open ground: build the selected tower. The preview and its range ring turn green where you can build and red where you can't.
 - **Right-click** or **Esc**: cancel, or close the upgrade panel.
 - **Space** or the gold button: start the next wave.
@@ -66,7 +66,7 @@ Every item from the assignment sheet, and where it's done. The project meets the
 |---|---|
 | 3D physics | Projectiles are `Rigidbody` bodies launched with a velocity (`Projectile.Launch`) and damage what they collide with (`Projectile.OnCollisionEnter`, continuous collision detection). Zombies are kinematic bodies moved with `Rigidbody.MovePosition`, each with a capsule collider fitted to its model. Splash damage is a radius check around the impact point. |
 | Placing towers | `TowerPlacer` raycasts the mouse onto the ground and checks the rules: a tower is selected, the game is running, under the cap, enough gold, at least 2.8 m from the road (`EnemyPath.DistanceTo`), 3.4 m from other towers, and clear of houses and other scenery (`Scenery` trigger colliders, so they block building but not shots or zombies). Every refusal shows a short message saying why. |
-| Firing at a set rate | Each tower fires `shotsPerSecond` times per second at the zombie furthest along the road within its `range` (`Tower.FindTarget`), since one leak ends the game. |
+| Firing at a set rate | Each tower fires `shotsPerSecond` times per second at a zombie within its `range`, chosen by its targeting mode (`Tower.FindTargets`); the default, First, is the zombie furthest along the road, since one leak ends the game. |
 | Predictive aim | `Ballistics.TryIntercept` solves the quadratic for where a straight-flying projectile at the tower's `projectileSpeed` meets a target moving at `Enemy.Velocity`, and aims there; if no interception exists it falls back to the target's position. The defender turns to face the aim point (yaw only, so it stays upright) and the shot is launched from its hand in 3D. `Enemy` carries its speed through corners so its velocity stays constant, which keeps the prediction accurate. |
 | Game over on a leak | When a zombie reaches the last waypoint (the town gate), `GameManager.GameOver` stops time and the end screen appears. Surviving wave 20 calls `GameManager.Victory`. |
 
@@ -86,7 +86,7 @@ It also says that towers can't go on the road, on houses or next to another towe
 |---|---|
 | [The map](#the-map) | A ruined medieval town: graveyard spawn, cobbled road with rounded bends, broken town gate, houses, walls and street clutter, open pockets for towers |
 | [Towers](#towers) | Three towers, each a rigged defender standing on its own structure, turning to aim, with an attack animation and recoil |
-| [Upgrades](#upgrades) | Two upgrade paths of three tiers per tower (Bloons-style 3/1 cross-path rule), each path with its own colour and mechanic: multishot, pierce, splash, slow; selling |
+| [Upgrades](#upgrades) | Two upgrade paths of three tiers per tower (Bloons-style 3/1 cross-path rule), each path with its own colour and mechanic: multishot, pierce, splash, slow; First / Last / Strong / Close targeting; selling |
 | [Zombies](#zombies) | Six types with different speed, HP, armour and gold; the Bloater bursts into Runners; the Zombie King boss |
 | [Waves & economy](#waves--economy) | 20 data-driven waves, gold per kill and per wave, 2x speed, restart |
 | [Art & animation](#art--animation) | Generated chibi characters and buildings, auto-rigged with walk, hit and death clips, weapons held on hand bones |
@@ -124,7 +124,16 @@ As in Bloons TD 6, clicking a tower opens its upgrade panel. Each tower has **tw
 | Mage | **Pyromancer** (orange) | Wider Blast, 160: +1 m splash | Fireball, 340: +6 damage | Meteor, 850: +14 damage, +1.5 m splash |
 | Mage | **Frost** (blue) | Chill, 150: hits slow zombies 30% for 1.5 s | Quick Cast, 300: 60% faster | Blizzard, 750: 55% slow for 2.5 s, faster, +1 m splash |
 
-Extra shots go to the next zombies in line (closest to the gate first), or fan out if only one is in range; each is aimed with the same predictive intercept. Pierce lets a shot carry on through a zombie at full speed. Slowed zombies walk (and animate) slower, and the towers' predictive aim uses their slowed velocity. The Zombie King only takes half the slow. The paths are data on each `TowerStats` asset (`UpgradePath`, `UpgradeTier`), so a new upgrade is a new entry, not new code.
+**Targeting.** Also as in Bloons, each tower has a targeting mode, shown in the upgrade panel and changed with **Tab** or its arrows:
+
+| Mode | Shoots | Good for |
+|---|---|---|
+| **First** (default) | the zombie furthest along the road | stopping leaks; the safe choice |
+| **Last** | the zombie nearest the graveyard | thinning a wave early, e.g. a Mage at the start of the road |
+| **Strong** | the zombie with the most HP left (ties: furthest along) | Archers on Clubbers, Revenants and the Zombie King |
+| **Close** | the zombie nearest the tower | short-range Knights in a bend |
+
+Extra shots go to the next zombies in the same order (for First, the next closest to the gate), or fan out if only one is in range; each is aimed with the same predictive intercept. Pierce lets a shot carry on through a zombie at full speed. Slowed zombies walk (and animate) slower, and the towers' predictive aim uses their slowed velocity. The Zombie King only takes half the slow. The paths are data on each `TowerStats` asset (`UpgradePath`, `UpgradeTier`), so a new upgrade is a new entry, not new code.
 
 ### Zombies
 
@@ -167,7 +176,7 @@ All of the HUD is built in code (`Hud.cs`) with rounded panels, a dark slate and
 - **How to Build card:** the numbered placement steps, always on screen until hidden with H.
 - **Tower cards:** a portrait of each defender (rendered by the builder into `Assets/UI/Portraits/`), its hotkey, cost and stats. The selected card lifts and lights up in its colour; cards you can't afford dim and show the price in red.
 - **Feedback:** the green or red placement preview with a range ring, a build hint, and a short message when a placement is refused.
-- **Upgrade panel:** opens on the right when a tower is clicked, with its live stats, both paths (tier pips in the path colour, the next upgrade's name, effect and price, or LOCKED / MAXED) and a Sell button. The selected tower shows its range ring in gold.
+- **Upgrade panel:** opens on the right when a tower is clicked, with its live stats, its targeting mode, both paths (tier pips in the path colour, the next upgrade's name, effect and price, or LOCKED / MAXED) and a Sell button. The selected tower shows its range ring in gold.
 - **Wave controls:** a gold Start Wave button that shows how many zombies are left on the road during a wave, and the speed toggle.
 - **Wave banner:** "WAVE 1 — THE DEAD ARE COMING" at the start, and a red "THE ZOMBIE KING RISES" warning on the last wave, on a dark band between gold rules so it stays readable over any part of the map.
 - **End screen:** THE TOWN IS SAVED or THE TOWN HAS FALLEN, with waves survived, zombies destroyed and Play Again.
