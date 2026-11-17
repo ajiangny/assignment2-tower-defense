@@ -29,8 +29,9 @@ namespace TowerDefense
 
         private readonly Collider[] overlap = new Collider[16];
 
-        private Transform preview;
-        private Renderer previewRenderer;
+        private GameObject[] ghosts;
+        private Renderer[][] ghostRenderers;
+        private int shownGhost = -1;
         private LineRenderer rangeRing;
         private LineRenderer selectionRing;
         private MaterialPropertyBlock previewBlock;
@@ -159,7 +160,6 @@ namespace TowerDefense
             SelectedTower = null;
 
             TowerStats stats = StatsFor(SelectedIndex);
-            preview.localScale = new Vector3(1.2f, stats.height / 2f, 1.2f);
             for (int i = 0; i < RingSegments; i++)
             {
                 float angle = i * Mathf.PI * 2f / RingSegments;
@@ -212,12 +212,8 @@ namespace TowerDefense
 
         private void BuildPreview()
         {
-            GameObject column = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            column.name = "Placement Preview";
-            Destroy(column.GetComponent<Collider>());
-            preview = column.transform;
-            previewRenderer = column.GetComponent<Renderer>();
-            previewRenderer.sharedMaterial = previewMaterial;
+            ghosts = new GameObject[towerPrefabs.Length];
+            ghostRenderers = new Renderer[towerPrefabs.Length][];
             previewBlock = new MaterialPropertyBlock();
 
             GameObject ring = new GameObject("Range Ring");
@@ -242,7 +238,6 @@ namespace TowerDefense
             gold.SetColor(BaseColor, new Color(1f, 0.85f, 0.4f));
             selectionRing.SetPropertyBlock(gold);
 
-            column.SetActive(false);
             ring.SetActive(false);
             selection.SetActive(false);
         }
@@ -250,19 +245,62 @@ namespace TowerDefense
         private void UpdatePreview(bool hasPoint, Vector3 point)
         {
             bool show = hasPoint && SelectedIndex >= 0 && !GameManager.Instance.IsFinished;
-            preview.gameObject.SetActive(show);
+            int wanted = show ? SelectedIndex : -1;
+            if (wanted != shownGhost)
+            {
+                if (shownGhost >= 0) ghosts[shownGhost].SetActive(false);
+                if (wanted >= 0) Ghost(wanted).SetActive(true);
+                shownGhost = wanted;
+            }
             rangeRing.gameObject.SetActive(show);
             if (!show) return;
 
-            float height = StatsFor(SelectedIndex).height;
-            preview.position = point + Vector3.up * (height / 2f);
+            ghosts[shownGhost].transform.position = point;
             rangeRing.transform.position = point + Vector3.up * 0.1f;
 
-            Color color = Check(point) == PlacementResult.Placed ? ValidColor : InvalidColor;
+            bool valid = Check(point) == PlacementResult.Placed;
+            Color color = valid ? ValidColor : InvalidColor;
+            // Softer than the ring colours: bright green blooms to cyan under the tonemapper.
+            Color ghostColor = valid ? new Color(0.3f, 0.62f, 0.34f, 0.38f) : new Color(0.9f, 0.28f, 0.22f, 0.42f);
+            previewBlock.SetColor(BaseColor, ghostColor);
+            foreach (Renderer r in ghostRenderers[shownGhost]) r.SetPropertyBlock(previewBlock);
             previewBlock.SetColor(BaseColor, color);
-            previewRenderer.SetPropertyBlock(previewBlock);
             rangeRing.startColor = rangeRing.endColor = color;
             rangeRing.SetPropertyBlock(previewBlock);
+        }
+
+        /// <summary>
+        /// A see-through copy of a tower prefab (structure and defender) for the placement preview, made on first use.
+        /// It's instantiated under an inactive parent so the Tower script never wakes up or counts as a built tower.
+        /// </summary>
+        private GameObject Ghost(int index)
+        {
+            if (ghosts[index] != null) return ghosts[index];
+
+            GameObject holder = new GameObject("Ghost Holder");
+            holder.SetActive(false);
+            Tower copy = Instantiate(towerPrefabs[index], holder.transform);
+            GameObject ghost = copy.gameObject;
+            ghost.name = $"Ghost {towerPrefabs[index].name}";
+            DestroyImmediate(copy);
+            foreach (Collider c in ghost.GetComponentsInChildren<Collider>(true)) DestroyImmediate(c);
+
+            Renderer[] renderers = ghost.GetComponentsInChildren<Renderer>(true);
+            foreach (Renderer r in renderers)
+            {
+                Material[] materials = new Material[r.sharedMaterials.Length];
+                for (int i = 0; i < materials.Length; i++) materials[i] = previewMaterial;
+                r.sharedMaterials = materials;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                r.receiveShadows = false;
+            }
+
+            ghost.SetActive(false);
+            ghost.transform.SetParent(transform, false);
+            Destroy(holder);
+            ghosts[index] = ghost;
+            ghostRenderers[index] = renderers;
+            return ghost;
         }
 
         public void Configure(Tower[] prefabs, Collider groundCollider, EnemyPath enemyPath, Material preview)

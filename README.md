@@ -51,7 +51,7 @@ Every item from the assignment sheet, and where it's done. The project meets the
 
 ## Controls
 
-- **1 / 2 / 3** or click a card: choose the Knight Bastion, Archer Tower or Mage Spire. Click the selected card again to deselect.
+- **1 / 2 / 3** or click a tile in the build dock: choose the Knight Bastion, Archer Tower or Mage Spire. Click the selected card again to deselect.
 - **Left-click a built tower** to open its upgrade panel. **Q** / **E** (or the buttons) buy the next tier on the left / right path; **Tab** (Shift+Tab backwards) or the arrows change its targeting; **Delete** or **Backspace** sells it for 70% of the gold spent on it.
 - **Left-click** open ground: build the selected tower. The preview and its range ring turn green where you can build and red where you can't.
 - **Right-click** or **Esc**: cancel, or close the upgrade panel.
@@ -177,12 +177,12 @@ All of the HUD is built in code (`Hud.cs`) with rounded panels, a dark slate and
 
 - **Top bar:** gold, wave, towers placed out of 10 (red at the cap) and zombies destroyed.
 - **How to Build card:** the numbered placement steps, always on screen until hidden with H.
-- **Tower cards:** a portrait of each defender (rendered by the builder into `Assets/UI/Portraits/`), its hotkey, cost and stats. The selected card lifts and lights up in its colour; cards you can't afford dim and show the price in red.
-- **Feedback:** the green or red placement preview with a range ring, a build hint, and a short message when a placement is refused.
+- **Build dock:** one panel in the bottom-left, mirroring the wave controls on the right, with a compact tile per tower: a portrait of the defender (rendered by the builder into `Assets/UI/Portraits/`) with its hotkey badge, name, cost and stats. The selected tile gets an outline and tint in the tower's colour; tiles you can't afford dim and show the price in red.
+- **Placement preview:** a see-through ghost of the actual tower (structure and defender) follows the cursor, tinted green where it can be built and red where it can't, with its range ring around it. A build hint sits above the dock, and a short message explains any refused placement or upgrade.
 - **Upgrade panel:** opens on the right when a tower is clicked, with its live stats, its targeting mode, both paths (tier pips in the path colour, the next upgrade's name, effect and price, or LOCKED / MAXED) and a Sell button. The selected tower shows its range ring in gold.
 - **Wave controls:** one panel in the bottom-right, level with the tower cards: two switch rows (2× Speed, Auto-start, each with its hotkey) beside a gold Start Wave button that shows how many zombies are left during a wave, or the auto-start countdown between waves.
 - **Wave banner:** "WAVE 1 — THE DEAD ARE COMING" at the start, and a red "THE ZOMBIE KING RISES" warning on the last wave, on a dark band between gold rules so it stays readable over any part of the map.
-- **End screen:** THE TOWN IS SAVED or THE TOWN HAS FALLEN, with waves survived, zombies destroyed and Play Again.
+- **End screen:** THE TOWN IS SAVED (gold) or THE TOWN HAS FALLEN (red), with a matching accent bar, waves survived, zombies destroyed and Play Again.
 
 ### Audio (ElevenLabs)
 

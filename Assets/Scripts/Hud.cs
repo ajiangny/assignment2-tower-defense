@@ -39,6 +39,7 @@ namespace TowerDefense
         private static Sprite rounded;
 
         private TMP_Text goldValue, waveValue, towerValue, killValue;
+        private RectTransform goldCoin;
         private RectTransform helpCard, helpChip;
         private TMP_Text hint;
         private RectTransform hintBox;
@@ -59,6 +60,7 @@ namespace TowerDefense
         private SwitchView speedToggle, autoToggle;
         private GameObject endScreen;
         private TMP_Text endTitle, endDetail, endWaves, endKills;
+        private Image endAccent;
         private RectTransform upgradePanel;
         private Image upgradeAccent;
         private TMP_Text upgradeName, upgradeStats, sellLabel, targetingLabel;
@@ -75,8 +77,8 @@ namespace TowerDefense
 
         private struct Card
         {
-            public RectTransform Rect;
             public Image Outline;
+            public Image Face;
             public CanvasGroup Group;
             public TMP_Text Cost;
             public int Price;
@@ -126,6 +128,7 @@ namespace TowerDefense
             row.childControlHeight = true;
 
             goldValue = Stat(bar, "GOLD", Gold, true);
+            goldCoin = (RectTransform)goldValue.transform.parent.Find("Coin");
             waveValue = Stat(bar, "WAVE", Text, false);
             towerValue = Stat(bar, "TOWERS", Text, false);
             killValue = Stat(bar, "DESTROYED", Text, false);
@@ -156,12 +159,16 @@ namespace TowerDefense
             Label(parent, text, 18, Text, TextAlignmentOptions.MidlineLeft, new Vector2(62f, y), new Vector2(350f, 28f), false, 0f);
         }
 
+        /// <summary>
+        /// The build dock in the bottom-left: one panel of compact tower tiles, mirroring the wave controls on the right.
+        /// </summary>
         private void BuildTowerCards(RectTransform root)
         {
-            const float width = 290f, height = 116f, gap = 14f;
+            const float pad = 10f, gap = 8f, width = 236f, height = 96f;
             int count = placer.TowerTypeCount;
             cards = new Card[count];
-            float start = -(count * width + (count - 1) * gap) / 2f + width / 2f;
+            RectTransform dock = Box("Build Dock", root, Anchor.BottomLeft, new Vector2(18f, 18f),
+                new Vector2(pad * 2f + count * width + (count - 1) * gap, height + pad * 2f), Panel);
 
             for (int i = 0; i < count; i++)
             {
@@ -169,17 +176,18 @@ namespace TowerDefense
                 TowerStats stats = placer.StatsFor(i);
                 Color accent = TowerAccents[i % TowerAccents.Length];
 
-                RectTransform outline = Box("Tower Card", root, Anchor.Bottom, new Vector2(start + i * (width + gap), 18f), new Vector2(width, height), accent);
+                // The outer box is the selection outline; the face sits 2 px inside it.
+                RectTransform outline = Box("Tower Card", dock, Anchor.TopLeft, new Vector2(pad + i * (width + gap), -pad), new Vector2(width, height), Color.clear, 10f);
                 CanvasGroup group = outline.gameObject.AddComponent<CanvasGroup>();
-                RectTransform card = Box("Face", outline, Anchor.Stretch, Vector2.zero, Vector2.zero, PanelRaised);
-                card.offsetMin = new Vector2(3f, 3f);
-                card.offsetMax = new Vector2(-3f, -3f);
+                RectTransform face = Box("Face", outline, Anchor.Stretch, Vector2.zero, Vector2.zero, PanelRaised, 9f);
+                face.offsetMin = new Vector2(2f, 2f);
+                face.offsetMax = new Vector2(-2f, -2f);
                 Button button = outline.gameObject.AddComponent<Button>();
-                button.targetGraphic = card.GetComponent<Image>();
+                button.targetGraphic = face.GetComponent<Image>();
                 button.onClick.AddListener(() => placer.Select(placer.SelectedIndex == index ? -1 : index));
 
-                // Portrait in a rounded, accent-tinted frame.
-                RectTransform frame = Box("Portrait", card, Anchor.Left, new Vector2(12f, 0f), new Vector2(92f, 92f), accent * new Color(0.45f, 0.45f, 0.45f, 1f));
+                // Portrait in an accent-tinted frame, with the hotkey badge on its corner.
+                RectTransform frame = Box("Portrait", face, Anchor.Left, new Vector2(8f, 0f), new Vector2(76f, 76f), accent * new Color(0.4f, 0.4f, 0.4f, 1f), 9f);
                 frame.gameObject.AddComponent<Mask>().showMaskGraphic = true;
                 if (portraits != null && i < portraits.Length && portraits[i] != null)
                 {
@@ -189,17 +197,18 @@ namespace TowerDefense
                     image.preserveAspect = true;
                     image.raycastTarget = false;
                 }
+                RectTransform key = Box("Key", face, Anchor.TopLeft, new Vector2(4f, -4f), new Vector2(22f, 22f), new Color(0.05f, 0.06f, 0.08f, 0.9f), 7f);
+                Label(key, (i + 1).ToString(), 13, Text, TextAlignmentOptions.Center, Vector2.zero, new Vector2(22f, 22f), true, 0f, Anchor.Center);
 
-                RectTransform key = Box("Key", card, Anchor.TopLeft, new Vector2(6f, -6f), new Vector2(26f, 26f), Panel);
-                Label(key, (i + 1).ToString(), 15, Text, TextAlignmentOptions.Center, Vector2.zero, new Vector2(26f, 26f), true, 0f, Anchor.Center);
+                const float textX = 94f;
+                TMP_Text title = Label(face, stats.displayName, 17, Text, TextAlignmentOptions.TopLeft, new Vector2(textX, -9f), new Vector2(width - textX - 8f, 22f), true, 0f);
+                title.textWrappingMode = TextWrappingModes.NoWrap;
+                Box("Coin", face, Anchor.TopLeft, new Vector2(textX, -37f), new Vector2(12f, 12f), Gold, 6f);
+                TMP_Text cost = Label(face, stats.cost.ToString(), 16, Gold, TextAlignmentOptions.MidlineLeft, new Vector2(textX + 17f, -33f), new Vector2(80f, 20f), true, 0f);
+                Label(face, $"{stats.shotsPerSecond:0.#}/s  ·  range {stats.range:0}\n{stats.height:0.#} m tall",
+                    12.5f, Muted, TextAlignmentOptions.TopLeft, new Vector2(textX, -56f), new Vector2(width - textX - 8f, 34f), false, 0f);
 
-                Label(card, stats.displayName, 20, Text, TextAlignmentOptions.TopLeft, new Vector2(116f, -12f), new Vector2(160f, 26f), true, 0f);
-                RectTransform coin = Box("Coin", card, Anchor.TopLeft, new Vector2(116f, -46f), new Vector2(14f, 14f), Gold, 7f);
-                TMP_Text cost = Label(card, stats.cost.ToString(), 18, Gold, TextAlignmentOptions.MidlineLeft, new Vector2(136f, -42f), new Vector2(80f, 22f), true, 0f);
-                Label(card, $"{stats.shotsPerSecond:0.#} shots/s  ·  range {stats.range:0}\nheight {stats.height:0.#} m",
-                    14, Muted, TextAlignmentOptions.TopLeft, new Vector2(116f, -68f), new Vector2(166f, 40f), false, 0f);
-
-                cards[i] = new Card { Rect = outline, Outline = outline.GetComponent<Image>(), Group = group, Cost = cost, Price = stats.cost };
+                cards[i] = new Card { Outline = outline.GetComponent<Image>(), Face = face.GetComponent<Image>(), Group = group, Cost = cost, Price = stats.cost };
             }
         }
 
@@ -378,14 +387,16 @@ namespace TowerDefense
                 {
                     view.Next.text = $"<color=#9EA3AF>Tier {tier + 1}:</color> {next.name}";
                     view.Description.text = next.description;
-                    view.ButtonLabel.text = locked ? "LOCKED BY OTHER PATH" : $"BUY   <color={(gold >= next.cost ? "#1F170D" : "#7A1E16")}>{next.cost} gold</color>";
+                    view.ButtonLabel.text = locked ? "LOCKED BY OTHER PATH"
+                        : gold >= next.cost ? $"BUY   {next.cost} gold" : $"BUY   <color=#FF6B5C>{next.cost} gold</color>";
                 }
 
                 bool canBuy = next != null && !locked && gold >= next.cost;
                 view.Button.interactable = next != null && !locked;
-                view.ButtonImage.color = next == null || locked ? PanelRaised : path.color;
-                view.ButtonLabel.color = next == null || locked ? Muted : Ink;
-                view.ButtonGroup.alpha = canBuy || next == null || locked ? 1f : 0.6f;
+                // Affordable: filled in the path colour. Too expensive: dark, with the price in red. Maxed or locked: muted.
+                view.ButtonImage.color = canBuy ? path.color : Panel;
+                view.ButtonLabel.color = canBuy ? Ink : next == null || locked ? Muted : Text;
+                view.ButtonGroup.alpha = 1f;
             }
 
             sellLabel.text = $"SELL   <color=#F5C24D>+{tower.SellValue} gold</color>   <color=#C9A9A4><size=80%>Del</size></color>";
@@ -436,13 +447,15 @@ namespace TowerDefense
             dim.color = Dim;
             endScreen = backdrop.gameObject;
 
-            RectTransform card = Box("End Card", backdrop, Anchor.Center, Vector2.zero, new Vector2(660f, 380f), new Color(0.07f, 0.08f, 0.11f, 0.97f));
-            endTitle = Label(card, "", 40, Text, TextAlignmentOptions.Center, new Vector2(0f, -40f), new Vector2(620f, 56f), true, 3f, Anchor.Top);
+            RectTransform card = Box("End Card", backdrop, Anchor.Center, Vector2.zero, new Vector2(660f, 430f), new Color(0.07f, 0.08f, 0.11f, 0.97f));
+            endAccent = Box("Accent", card, Anchor.Top, new Vector2(0f, -8f), new Vector2(620f, 4f), Gold, 2f).GetComponent<Image>();
+            endTitle = Label(card, "", 40, Text, TextAlignmentOptions.Center, new Vector2(0f, -38f), new Vector2(620f, 56f), true, 3f, Anchor.Top);
             endTitle.textWrappingMode = TextWrappingModes.NoWrap;
-            endDetail = Label(card, "", 20, Muted, TextAlignmentOptions.Center, new Vector2(0f, -104f), new Vector2(600f, 30f), false, 0f, Anchor.Top);
+            endDetail = Label(card, "", 20, Muted, TextAlignmentOptions.Center, new Vector2(0f, -98f), new Vector2(600f, 30f), false, 0f, Anchor.Top);
+            Box("Divider", card, Anchor.Top, new Vector2(0f, -146f), new Vector2(520f, 1f), new Color(1f, 1f, 1f, 0.1f), 1f);
 
-            endWaves = BigStat(card, "WAVES SURVIVED", new Vector2(-130f, 10f));
-            endKills = BigStat(card, "ZOMBIES DESTROYED", new Vector2(130f, 10f));
+            endWaves = BigStat(card, "WAVES SURVIVED", new Vector2(-130f, -10f));
+            endKills = BigStat(card, "ZOMBIES DESTROYED", new Vector2(130f, -10f));
 
             RectTransform again = Box("Play Again", card, Anchor.Bottom, new Vector2(0f, 30f), new Vector2(280f, 64f), Gold);
             Button button = again.gameObject.AddComponent<Button>();
@@ -470,6 +483,8 @@ namespace TowerDefense
             int gold = Economy.Instance.Gold;
             bool atCap = Tower.Active.Count >= placer.MaxTowers;
             goldValue.text = gold.ToString();
+            // Keep the coin snug against the number, whatever its width.
+            goldCoin.anchoredPosition = new Vector2(10f - goldValue.preferredWidth / 2f - 14f, goldCoin.anchoredPosition.y);
             waveValue.text = $"{spawner.CurrentWave}<size=70%><color=#9EA3AF> / {spawner.TotalWaves}</color></size>";
             towerValue.text = $"{(atCap ? "<color=#FF6B5C>" : "")}{Tower.Active.Count}{(atCap ? "</color>" : "")}<size=70%><color=#9EA3AF> / {placer.MaxTowers}</color></size>";
             killValue.text = game.Kills.ToString();
@@ -496,12 +511,10 @@ namespace TowerDefense
                 bool selected = i == placer.SelectedIndex;
                 bool affordable = gold >= cards[i].Price && !atCap;
                 Color accent = TowerAccents[i % TowerAccents.Length];
-                cards[i].Outline.color = selected ? accent : new Color(accent.r, accent.g, accent.b, 0.35f);
-                cards[i].Group.alpha = affordable || selected ? 1f : 0.55f;
+                cards[i].Outline.color = selected ? accent : Color.clear;
+                cards[i].Face.color = selected ? Color.Lerp(PanelRaised, accent, 0.22f) : PanelRaised;
+                cards[i].Group.alpha = affordable || selected ? 1f : 0.5f;
                 cards[i].Cost.color = gold >= cards[i].Price ? Gold : Danger;
-                Vector2 position = cards[i].Rect.anchoredPosition;
-                position.y = Mathf.MoveTowards(position.y, selected ? 30f : 18f, Time.unscaledDeltaTime * 120f);
-                cards[i].Rect.anchoredPosition = position;
             }
         }
 
@@ -586,6 +599,7 @@ namespace TowerDefense
             bool won = game.Result == GameResult.Won;
             endTitle.text = won ? "THE TOWN IS SAVED" : "THE TOWN HAS FALLEN";
             endTitle.color = won ? Gold : Danger;
+            endAccent.color = won ? Gold : Danger;
             endDetail.text = won ? "Every wave of the dead was held back." : "A zombie reached the town gate.";
             int survived = won ? spawner.TotalWaves : Mathf.Max(0, spawner.CurrentWave - 1);
             endWaves.text = $"{survived}<size=60%><color=#9EA3AF> / {spawner.TotalWaves}</color></size>";
@@ -625,7 +639,7 @@ namespace TowerDefense
 
         // ---------- Building blocks ----------
 
-        private enum Anchor { Top, TopLeft, TopRight, Bottom, BottomRight, Left, Right, Center, Stretch }
+        private enum Anchor { Top, TopLeft, TopRight, Bottom, BottomLeft, BottomRight, Left, Right, Center, Stretch }
 
         private static RectTransform Rect(string name, RectTransform parent, Anchor anchor, Vector2 position, Vector2 size)
         {
@@ -639,6 +653,7 @@ namespace TowerDefense
                 case Anchor.TopRight: a = new Vector2(1f, 1f); break;
                 case Anchor.Bottom: a = new Vector2(0.5f, 0f); break;
                 case Anchor.BottomRight: a = new Vector2(1f, 0f); break;
+                case Anchor.BottomLeft: a = new Vector2(0f, 0f); break;
                 case Anchor.Left: a = new Vector2(0f, 0.5f); break;
                 case Anchor.Right: a = new Vector2(1f, 0.5f); break;
                 case Anchor.Center: a = new Vector2(0.5f, 0.5f); break;

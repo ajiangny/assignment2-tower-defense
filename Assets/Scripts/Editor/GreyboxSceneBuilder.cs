@@ -82,6 +82,7 @@ namespace TowerDefense.EditorTools
             Material groundMat = GetOrCreateMaterial("Ground", new Color(0.32f, 0.42f, 0.30f));
             Material pathMat = GetOrCreateMaterial("Path", new Color(0.55f, 0.47f, 0.35f));
             Material previewMat = GetOrCreateMaterial("Preview", Color.white);
+            MakeTransparent(previewMat);
 
             Tower[] towers =
             {
@@ -1386,6 +1387,25 @@ namespace TowerDefense.EditorTools
                 AssetDatabase.CreateAsset(asset, path);
             }
             return asset;
+        }
+
+        /// <summary>Switches a URP Lit material to alpha-blended transparency (for the placement ghost).</summary>
+        private static void MakeTransparent(Material material)
+        {
+            material.SetFloat("_Surface", 1f);
+            material.SetFloat("_Blend", 0f);
+            material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            material.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+            material.SetFloat("_SrcBlendAlpha", (float)BlendMode.One);
+            material.SetFloat("_DstBlendAlpha", (float)BlendMode.OneMinusSrcAlpha);
+            material.SetFloat("_ZWrite", 0f);
+            material.SetOverrideTag("RenderType", "Transparent");
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.renderQueue = (int)RenderQueue.Transparent;
+            material.SetFloat("_Smoothness", 0.6f);
+            material.EnableKeyword("_EMISSION");
+            material.SetColor("_EmissionColor", new Color(0.12f, 0.12f, 0.12f));
+            EditorUtility.SetDirty(material);
         }
 
         private static Material GetOrCreateMaterial(string name, Color color)
