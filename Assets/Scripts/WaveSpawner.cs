@@ -8,6 +8,8 @@ namespace TowerDefense
     {
         [SerializeField] private WaveDefinition[] waves;
         [SerializeField] private EnemyPath path;
+        [Tooltip("Seconds between clearing a wave and auto-start launching the next one.")]
+        [SerializeField, Min(0f)] private float autoStartDelay = 2.5f;
 
         private int groupsSpawning;
 
@@ -15,6 +17,18 @@ namespace TowerDefense
         public int CurrentWave { get; private set; }
         public int TotalWaves => waves.Length;
         public bool WaveInProgress { get; private set; }
+
+        /// <summary>When on, the next wave starts by itself shortly after the current one is cleared (BTD6's auto-start).</summary>
+        public bool AutoStart { get; private set; }
+
+        /// <summary>Seconds until auto-start launches the next wave; only meaningful while waiting with AutoStart on.</summary>
+        public float AutoCountdown { get; private set; }
+
+        public void ToggleAutoStart()
+        {
+            AutoStart = !AutoStart;
+            AutoCountdown = autoStartDelay;
+        }
 
         public bool StartNextWave()
         {
@@ -44,10 +58,21 @@ namespace TowerDefense
 
         private void Update()
         {
-            if (!WaveInProgress || groupsSpawning > 0 || Enemy.Active.Count > 0) return;
             if (GameManager.Instance.IsFinished) return;
 
+            if (!WaveInProgress)
+            {
+                // Waiting between waves: count down and launch when auto-start is on.
+                if (!AutoStart || CurrentWave >= waves.Length) return;
+                AutoCountdown -= Time.deltaTime;
+                if (AutoCountdown <= 0f) StartNextWave();
+                return;
+            }
+
+            if (groupsSpawning > 0 || Enemy.Active.Count > 0) return;
+
             WaveInProgress = false;
+            AutoCountdown = autoStartDelay;
             Economy.Instance.Add(waves[CurrentWave - 1].completionGold);
             if (CurrentWave >= waves.Length) GameManager.Instance.Victory();
         }

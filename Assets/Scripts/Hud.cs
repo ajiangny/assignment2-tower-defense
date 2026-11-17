@@ -55,7 +55,8 @@ namespace TowerDefense
         private Card[] cards;
         private Button waveButton;
         private Image waveButtonImage;
-        private TMP_Text waveTitle, waveSubtitle, speedLabel;
+        private TMP_Text waveTitle, waveSubtitle, speedLabel, autoLabel;
+        private Image autoImage;
         private GameObject endScreen;
         private TMP_Text endTitle, endDetail, endWaves, endKills;
         private RectTransform upgradePanel;
@@ -218,6 +219,14 @@ namespace TowerDefense
             speedButton.onClick.AddListener(() => { GameManager.Instance.ToggleFastForward(); Click(); });
             speedLabel = Label(speed, "", 26, Text, TextAlignmentOptions.Center, new Vector2(0f, 8f), new Vector2(92f, 34f), true, 0f, Anchor.Center);
             Label(speed, "SPEED  F", 12, Muted, TextAlignmentOptions.Center, new Vector2(0f, -22f), new Vector2(92f, 18f), false, 1f, Anchor.Center);
+
+            RectTransform auto = Box("Auto Start", root, Anchor.BottomRight, new Vector2(-330f, 122f), new Vector2(92f, 92f), Panel);
+            autoImage = auto.GetComponent<Image>();
+            Button autoButton = auto.gameObject.AddComponent<Button>();
+            autoButton.targetGraphic = autoImage;
+            autoButton.onClick.AddListener(() => { spawner.ToggleAutoStart(); Click(); });
+            autoLabel = Label(auto, "", 20, Text, TextAlignmentOptions.Center, new Vector2(0f, 8f), new Vector2(92f, 34f), true, 0f, Anchor.Center);
+            Label(auto, "AUTO  A", 12, Muted, TextAlignmentOptions.Center, new Vector2(0f, -22f), new Vector2(92f, 18f), false, 1f, Anchor.Center);
         }
 
         private void BuildUpgradePanel(RectTransform root)
@@ -425,6 +434,7 @@ namespace TowerDefense
             {
                 if (keyboard.hKey.wasPressedThisFrame) { ToggleHelp(); Click(); }
                 if (keyboard.fKey.wasPressedThisFrame) { game.ToggleFastForward(); Click(); }
+                if (keyboard.aKey.wasPressedThisFrame) { spawner.ToggleAutoStart(); Click(); }
                 if (keyboard.spaceKey.wasPressedThisFrame) spawner.StartNextWave();
             }
 
@@ -487,10 +497,13 @@ namespace TowerDefense
             else
             {
                 waveTitle.text = $"START WAVE {spawner.CurrentWave + 1}";
-                waveSubtitle.text = "Space";
+                waveSubtitle.text = spawner.AutoStart ? $"Auto-starting in {Mathf.Max(0f, spawner.AutoCountdown):0.0}s" : "Space";
             }
             speedLabel.text = game.FastForward ? "2x" : "1x";
             speedLabel.color = game.FastForward ? Gold : Text;
+            autoLabel.text = spawner.AutoStart ? "ON" : "OFF";
+            autoLabel.color = spawner.AutoStart ? Gold : Muted;
+            autoImage.color = spawner.AutoStart ? new Color(0.32f, 0.25f, 0.08f, 0.95f) : Panel;
         }
 
         private void UpdateMessages(GameManager game)
