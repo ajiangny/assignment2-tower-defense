@@ -55,8 +55,8 @@ namespace TowerDefense
         private Card[] cards;
         private Button waveButton;
         private Image waveButtonImage;
-        private TMP_Text waveTitle, waveSubtitle, speedLabel, autoLabel;
-        private Image autoImage;
+        private TMP_Text waveTitle, waveSubtitle;
+        private SwitchView speedToggle, autoToggle;
         private GameObject endScreen;
         private TMP_Text endTitle, endDetail, endWaves, endKills;
         private RectTransform upgradePanel;
@@ -203,30 +203,59 @@ namespace TowerDefense
             }
         }
 
+        /// <summary>
+        /// One panel in the bottom-right: two switch rows (2x speed, auto-start) beside the Start Wave button,
+        /// the same height as the tower cards.
+        /// </summary>
         private void BuildWaveControls(RectTransform root)
         {
-            RectTransform wave = Box("Start Wave", root, Anchor.BottomRight, new Vector2(-18f, 18f), new Vector2(300f, 92f), Gold);
+            const float pad = 10f, rowWidth = 160f, buttonWidth = 270f;
+            RectTransform panel = Box("Wave Controls", root, Anchor.BottomRight, new Vector2(-18f, 18f), new Vector2(pad * 3f + rowWidth + buttonWidth, 116f), Panel);
+
+            RectTransform wave = Box("Start Wave", panel, Anchor.Right, new Vector2(-pad, 0f), new Vector2(buttonWidth, 96f), Gold, 10f);
             waveButtonImage = wave.GetComponent<Image>();
             waveButton = wave.gameObject.AddComponent<Button>();
             waveButton.targetGraphic = waveButtonImage;
             waveButton.onClick.AddListener(() => spawner.StartNextWave());
-            waveTitle = Label(wave, "", 24, Ink, TextAlignmentOptions.Center, new Vector2(0f, 12f), new Vector2(280f, 34f), true, 2f, Anchor.Center);
-            waveSubtitle = Label(wave, "", 15, Ink, TextAlignmentOptions.Center, new Vector2(0f, -18f), new Vector2(280f, 22f), false, 0f, Anchor.Center);
+            waveTitle = Label(wave, "", 24, Ink, TextAlignmentOptions.Center, new Vector2(0f, 12f), new Vector2(buttonWidth - 20f, 34f), true, 2f, Anchor.Center);
+            waveSubtitle = Label(wave, "", 15, Ink, TextAlignmentOptions.Center, new Vector2(0f, -18f), new Vector2(buttonWidth - 20f, 22f), false, 0f, Anchor.Center);
 
-            RectTransform speed = Box("Speed", root, Anchor.BottomRight, new Vector2(-330f, 18f), new Vector2(92f, 92f), Panel);
-            Button speedButton = speed.gameObject.AddComponent<Button>();
-            speedButton.targetGraphic = speed.GetComponent<Image>();
-            speedButton.onClick.AddListener(() => { GameManager.Instance.ToggleFastForward(); Click(); });
-            speedLabel = Label(speed, "", 26, Text, TextAlignmentOptions.Center, new Vector2(0f, 8f), new Vector2(92f, 34f), true, 0f, Anchor.Center);
-            Label(speed, "SPEED  F", 12, Muted, TextAlignmentOptions.Center, new Vector2(0f, -22f), new Vector2(92f, 18f), false, 1f, Anchor.Center);
+            speedToggle = SwitchRow(panel, new Vector2(pad, -pad), rowWidth, "2× Speed", "F", () => GameManager.Instance.ToggleFastForward());
+            autoToggle = SwitchRow(panel, new Vector2(pad, -pad - 52f), rowWidth, "Auto-start", "A", () => spawner.ToggleAutoStart());
+        }
 
-            RectTransform auto = Box("Auto Start", root, Anchor.BottomRight, new Vector2(-330f, 122f), new Vector2(92f, 92f), Panel);
-            autoImage = auto.GetComponent<Image>();
-            Button autoButton = auto.gameObject.AddComponent<Button>();
-            autoButton.targetGraphic = autoImage;
-            autoButton.onClick.AddListener(() => { spawner.ToggleAutoStart(); Click(); });
-            autoLabel = Label(auto, "", 20, Text, TextAlignmentOptions.Center, new Vector2(0f, 8f), new Vector2(92f, 34f), true, 0f, Anchor.Center);
-            Label(auto, "AUTO  A", 12, Muted, TextAlignmentOptions.Center, new Vector2(0f, -22f), new Vector2(92f, 18f), false, 1f, Anchor.Center);
+        private class SwitchView
+        {
+            public Image Track;
+            public RectTransform Knob;
+            public TMP_Text Label;
+        }
+
+        private SwitchView SwitchRow(RectTransform parent, Vector2 position, float width, string text, string key, System.Action toggle)
+        {
+            RectTransform row = Box(text, parent, Anchor.TopLeft, position, new Vector2(width, 44f), PanelRaised, 10f);
+            Button button = row.gameObject.AddComponent<Button>();
+            button.targetGraphic = row.GetComponent<Image>();
+            button.onClick.AddListener(() => { toggle(); Click(); });
+
+            SwitchView view = new SwitchView();
+            view.Label = Label(row, $"{text}  <size=80%><color=#9EA3AF>{key}</color></size>", 15, Text, TextAlignmentOptions.MidlineLeft,
+                new Vector2(12f, 0f), new Vector2(width - 60f, 44f), true, 0f, Anchor.Left);
+            view.Track = Box("Track", row, Anchor.Right, new Vector2(-10f, 0f), new Vector2(40f, 22f), Muted, 11f).GetComponent<Image>();
+            view.Knob = Box("Knob", (RectTransform)view.Track.transform, Anchor.Left, new Vector2(3f, 0f), new Vector2(16f, 16f), Text, 8f);
+            view.Track.raycastTarget = false;
+            view.Knob.GetComponent<Image>().raycastTarget = false;
+            return view;
+        }
+
+        private static void UpdateSwitch(SwitchView view, bool on)
+        {
+            view.Track.color = on ? Gold : new Color(0.32f, 0.34f, 0.4f);
+            view.Knob.GetComponent<Image>().color = on ? Ink : Text;
+            Vector2 position = view.Knob.anchoredPosition;
+            position.x = Mathf.MoveTowards(position.x, on ? 21f : 3f, Time.unscaledDeltaTime * 160f);
+            view.Knob.anchoredPosition = position;
+            view.Label.color = on ? Text : Muted;
         }
 
         private void BuildUpgradePanel(RectTransform root)
@@ -499,11 +528,8 @@ namespace TowerDefense
                 waveTitle.text = $"START WAVE {spawner.CurrentWave + 1}";
                 waveSubtitle.text = spawner.AutoStart ? $"Auto-starting in {Mathf.Max(0f, spawner.AutoCountdown):0.0}s" : "Space";
             }
-            speedLabel.text = game.FastForward ? "2x" : "1x";
-            speedLabel.color = game.FastForward ? Gold : Text;
-            autoLabel.text = spawner.AutoStart ? "ON" : "OFF";
-            autoLabel.color = spawner.AutoStart ? Gold : Muted;
-            autoImage.color = spawner.AutoStart ? new Color(0.32f, 0.25f, 0.08f, 0.95f) : Panel;
+            UpdateSwitch(speedToggle, game.FastForward);
+            UpdateSwitch(autoToggle, spawner.AutoStart);
         }
 
         private void UpdateMessages(GameManager game)

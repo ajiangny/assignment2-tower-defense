@@ -56,8 +56,8 @@ Every item from the assignment sheet, and where it's done. The project meets the
 - **Left-click** open ground: build the selected tower. The preview and its range ring turn green where you can build and red where you can't.
 - **Right-click** or **Esc**: cancel, or close the upgrade panel.
 - **Space** or the gold button: start the next wave.
-- **F** or the speed button: toggle 1x / 2x speed.
-- **A** or the AUTO button: toggle auto-start. While it's on, the next wave starts by itself 2.5 s after the last zombie of a wave falls (the Start Wave button counts down), so you don't have to press Space each wave.
+- **F** or the 2× Speed switch: toggle 1x / 2x speed.
+- **A** or the Auto-start switch: toggle auto-start. While it's on, the next wave starts by itself 2.5 s after the last zombie of a wave falls (the Start Wave button counts down), so you don't have to press Space each wave.
 - **H**: hide or show the How to Build card.
 - **R** or Play Again: restart after the game ends.
 
@@ -180,7 +180,7 @@ All of the HUD is built in code (`Hud.cs`) with rounded panels, a dark slate and
 - **Tower cards:** a portrait of each defender (rendered by the builder into `Assets/UI/Portraits/`), its hotkey, cost and stats. The selected card lifts and lights up in its colour; cards you can't afford dim and show the price in red.
 - **Feedback:** the green or red placement preview with a range ring, a build hint, and a short message when a placement is refused.
 - **Upgrade panel:** opens on the right when a tower is clicked, with its live stats, its targeting mode, both paths (tier pips in the path colour, the next upgrade's name, effect and price, or LOCKED / MAXED) and a Sell button. The selected tower shows its range ring in gold.
-- **Wave controls:** a gold Start Wave button that shows how many zombies are left on the road during a wave (or the auto-start countdown between waves), the speed toggle, and the AUTO toggle above it.
+- **Wave controls:** one panel in the bottom-right, level with the tower cards: two switch rows (2× Speed, Auto-start, each with its hotkey) beside a gold Start Wave button that shows how many zombies are left during a wave, or the auto-start countdown between waves.
 - **Wave banner:** "WAVE 1 — THE DEAD ARE COMING" at the start, and a red "THE ZOMBIE KING RISES" warning on the last wave, on a dark band between gold rules so it stays readable over any part of the map.
 - **End screen:** THE TOWN IS SAVED or THE TOWN HAS FALLEN, with waves survived, zombies destroyed and Play Again.
 
