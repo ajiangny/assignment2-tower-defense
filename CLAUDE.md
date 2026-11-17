@@ -16,7 +16,7 @@ Thresholds are the same for CSCI 381 and 780 by the A tier; the tiers differ onl
 - [x] Towers aim at the target's predicted location (`Ballistics.TryIntercept`)
 - [x] Multiple enemy types with different speed and HP
 - [x] Non-basic assets (imported graphics must permit reuse): Rodin models, Poly Haven CC0 textures, ElevenLabs sounds; credited in README.md
-- [x] A+: above and beyond (designed map, 20 waves with a boss, economy, rigged animation, HUD, post-processing, sound); see README.md
+- [x] A+: above and beyond (designed map, 20 waves with a boss, economy, two-path tower upgrades and selling, projectile VFX, rigged animation, HUD, post-processing, sound); see README.md
 
 ## Layout
 - `Assets/Scripts/`: runtime code, namespace `TowerDefense`

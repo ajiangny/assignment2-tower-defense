@@ -13,7 +13,7 @@ Unity 6000.6.6f1, URP, the new Input System. Inspired by Bloons TD 6 (towers as 
 
 **For grading:** predictive aim can be compared against direct aim by setting `Tower.PredictiveAim = false` on a tower in Play mode. All tower, zombie and wave numbers are ScriptableObjects in `Assets/Data/` and can be changed in the Inspector.
 
-**Contents:** [Assignment checklist](#assignment-checklist) · [Controls](#controls) · [Required features](#required-features) · [Additional features](#additional-features-above-and-beyond) ([map](#the-map), [towers](#towers), [zombies](#zombies), [waves & economy](#waves--economy), [art & animation](#art--animation), [UI](#ui), [audio](#audio-elevenlabs)) · [Balancing](#balancing) · [Credits and AI use](#credits-and-ai-use)
+**Contents:** [Assignment checklist](#assignment-checklist) · [Controls](#controls) · [Required features](#required-features) · [Additional features](#additional-features-above-and-beyond) ([map](#the-map), [towers](#towers), [upgrades](#upgrades), [zombies](#zombies), [waves & economy](#waves--economy), [art & animation](#art--animation), [UI](#ui), [audio](#audio-elevenlabs)) · [Balancing](#balancing) · [Credits and AI use](#credits-and-ai-use)
 
 ## Assignment checklist
 
@@ -47,13 +47,14 @@ Every item from the assignment sheet, and where it's done. The project meets the
 | The game includes non-basic assets | Done | Rigged and animated 3D characters, buildings and props, textures and sound ([Art & animation](#art--animation), [Credits](#credits-and-ai-use)) |
 | Towers aim at the predicted location from the target's velocity and position (381) | Done | `Ballistics.TryIntercept`, using `Enemy.Velocity` |
 
-**A+ (above and beyond):** a designed map, a 20-wave campaign ending in a boss, an economy, zombie abilities (splitting, armour), rigged and animated characters, a full HUD, post-processing and sound. See [Additional features](#additional-features-above-and-beyond).
+**A+ (above and beyond):** a designed map, a 20-wave campaign ending in a boss, an economy, two upgrade paths per tower with selling, projectile trails and impact effects, zombie abilities (splitting, armour), rigged and animated characters, a full HUD, post-processing and sound. See [Additional features](#additional-features-above-and-beyond).
 
 ## Controls
 
 - **1 / 2 / 3** or click a card: choose the Knight Bastion, Archer Tower or Mage Spire. Click the selected card again to deselect.
+- **Left-click a built tower** to open its upgrade panel. **Q** / **E** (or the buttons) buy the next tier on the left / right path; **Delete** or **Backspace** sells it for 70% of the gold spent on it.
 - **Left-click** open ground: build the selected tower. The preview and its range ring turn green where you can build and red where you can't.
-- **Right-click** or **Esc**: cancel.
+- **Right-click** or **Esc**: cancel, or close the upgrade panel.
 - **Space** or the gold button: start the next wave.
 - **F** or the speed button: toggle 1x / 2x speed.
 - **H**: hide or show the How to Build card.
@@ -85,15 +86,16 @@ It also says that towers can't go on the road, on houses or next to another towe
 |---|---|
 | [The map](#the-map) | A ruined medieval town: graveyard spawn, cobbled road with rounded bends, broken town gate, houses, walls and street clutter, open pockets for towers |
 | [Towers](#towers) | Three towers, each a rigged defender standing on its own structure, turning to aim, with an attack animation and recoil |
+| [Upgrades](#upgrades) | Two upgrade paths of three tiers per tower (Bloons-style 3/1 cross-path rule), each path with its own colour and mechanic: multishot, pierce, splash, slow; selling |
 | [Zombies](#zombies) | Six types with different speed, HP, armour and gold; the Bloater bursts into Runners; the Zombie King boss |
 | [Waves & economy](#waves--economy) | 20 data-driven waves, gold per kill and per wave, 2x speed, restart |
 | [Art & animation](#art--animation) | Generated chibi characters and buildings, auto-rigged with walk, hit and death clips, weapons held on hand bones |
-| [UI](#ui) | Resource bar, tower cards with portraits, wave banner, placement feedback, end screen |
+| [UI](#ui) | Resource bar, tower cards with portraits, upgrade panel, wave banner, placement feedback, end screen |
 | [Audio](#audio-elevenlabs) | 21 ElevenLabs sound effects for zombies, towers, projectiles and the UI |
 
 ### The map
 
-The dead rise inside a fenced graveyard in the top-left and leave through its iron gate. The road winds through the town in rounded bends (`RoundCorners` smooths each corner into an arc, and the road is one cobblestone mesh along it) and ends at a broken stone gatehouse in the town wall on the right. Ruined houses, carts, barrels, a well and dead trees line the edges; the pockets inside each bend are left open, so a tower there covers two or three stretches of road, as in Bloons. Lanterns along the road cast warm light. The layout is a table in the builder (`TownLayout`), so it's easy to change.
+The dead rise inside a fenced graveyard in the top-left and leave through its iron gate. The road winds through the town in rounded bends (`RoundCorners` smooths each corner into an arc, and the road is one cobblestone mesh along it) and ends at a broken stone gatehouse in the town wall on the right. Ruined houses, carts, barrels, a well and dead trees line the edges; the pockets inside each bend are left open, so a tower there covers two or three stretches of road, as in Bloons. Lanterns along the road cast warm light. A darker earth verge runs under the cobbles so the road's edge reads cleanly from the camera, dead trees and old graves frame the outskirts, low mist drifts across the town and green wisps float over the graveyard. The ground runs well past the camera's view and fades into fog, so the map never ends at a visible edge. The layout is a table in the builder (`TownLayout`), so it's easy to change.
 
 ### Towers
 
@@ -105,7 +107,24 @@ Following Bloons TD 6, each tower is a character rather than a building: a chibi
 | **Archer Tower** | Hooded archer with a longbow on a tall watchtower | 150 | 1 / s | 35 | 7 m | 20 | 5 |
 | **Mage Spire** | Bearded mage with a crystal staff on a rune-carved spire; casts orbs that splash for 2.5 m | 225 | 0.5 / s | 10 | 5 m | 13 | 8 |
 
-The Knight is cheap, fast and short-ranged, the Archer is a long-range sniper that's hard to miss with, and the Mage is slow but hits groups. The Knight and Mage play an attack animation on every shot, and every defender kicks back slightly when it fires. The Knight's projectile is the same axe model he holds.
+The Knight is cheap, fast and short-ranged, the Archer is a long-range sniper that's hard to miss with, and the Mage is slow but hits groups. The Knight and Mage play an attack animation on every shot, and every defender kicks back slightly when it fires. The Knight's projectile is the same axe model he holds, tumbling end over end.
+
+**Projectiles and effects** (`Projectile`, `Vfx`): every shot leaves a fading trail. The axe tumbles and bursts into splinters and dust; the arrow is a modelled shaft, steel head and fletching that sparks on impact; the orb is an emissive core with its own point light that blooms, and it explodes in a flash, a burst of motes and a shockwave ring as wide as its splash radius. Once a tower is upgraded, its trails and impacts take the colour of its leading path (fire orange, frost blue and so on). Building a tower kicks up dust. The effects are built in code from two generated soft-particle materials in `Assets/Resources/Vfx/`.
+
+### Upgrades
+
+As in Bloons TD 6, clicking a tower opens its upgrade panel. Each tower has **two paths of three tiers**. Either path can reach tier 3, but once one path passes tier 1 the other is capped at tier 1 (a 3/1 split), so every tower is a choice. Each path has a signature colour: the tower gets a glowing ring in that colour that thickens with each tier, the defender grows a little, tier 3 adds a swirling aura, and its shots take on the colour. Selling refunds 70% of everything spent on the tower.
+
+| Tower | Path | Tier 1 | Tier 2 | Tier 3 |
+|---|---|---|---|---|
+| Knight | **Berserker** (red) | Whetted Axes, 110: +1 damage | Battle Frenzy, 240: throws 50% faster | Whirlwind Warlord, 650: +3 damage, 50% faster, +2 range |
+| Knight | **Axe Master** (gold) | Long Arm, 100: +2.5 range | Twin Throw, 260: a second axe at the next zombie | Axe Storm, 700: two more axes, each cuts through a zombie |
+| Archer | **Marksman** (crimson) | Broadheads, 150: +3 damage | Piercing Shot, 280: arrows pass through 2 zombies, fly faster | Deadeye, 750: +12 damage, +2 pierce, +4 range |
+| Archer | **Volley** (green) | Quick Draw, 140: 40% faster | Double Nock, 300: a second arrow | Arrow Rain, 720: two more arrows, 50% faster |
+| Mage | **Pyromancer** (orange) | Wider Blast, 160: +1 m splash | Fireball, 340: +6 damage | Meteor, 850: +14 damage, +1.5 m splash |
+| Mage | **Frost** (blue) | Chill, 150: hits slow zombies 30% for 1.5 s | Quick Cast, 300: 60% faster | Blizzard, 750: 55% slow for 2.5 s, faster, +1 m splash |
+
+Extra shots go to the next zombies in line (closest to the gate first), or fan out if only one is in range; each is aimed with the same predictive intercept. Pierce lets a shot carry on through a zombie at full speed. Slowed zombies walk (and animate) slower, and the towers' predictive aim uses their slowed velocity. The Zombie King only takes half the slow. The paths are data on each `TowerStats` asset (`UpgradePath`, `UpgradeTier`), so a new upgrade is a new entry, not new code.
 
 ### Zombies
 
@@ -148,8 +167,9 @@ All of the HUD is built in code (`Hud.cs`) with rounded panels, a dark slate and
 - **How to Build card:** the numbered placement steps, always on screen until hidden with H.
 - **Tower cards:** a portrait of each defender (rendered by the builder into `Assets/UI/Portraits/`), its hotkey, cost and stats. The selected card lifts and lights up in its colour; cards you can't afford dim and show the price in red.
 - **Feedback:** the green or red placement preview with a range ring, a build hint, and a short message when a placement is refused.
+- **Upgrade panel:** opens on the right when a tower is clicked, with its live stats, both paths (tier pips in the path colour, the next upgrade's name, effect and price, or LOCKED / MAXED) and a Sell button. The selected tower shows its range ring in gold.
 - **Wave controls:** a gold Start Wave button that shows how many zombies are left on the road during a wave, and the speed toggle.
-- **Wave banner:** "WAVE 1 — THE DEAD ARE COMING" at the start, and a red "THE ZOMBIE KING RISES" warning on the last wave.
+- **Wave banner:** "WAVE 1 — THE DEAD ARE COMING" at the start, and a red "THE ZOMBIE KING RISES" warning on the last wave, on a dark band between gold rules so it stays readable over any part of the map.
 - **End screen:** THE TOWN IS SAVED or THE TOWN HAS FALLEN, with waves survived, zombies destroyed and Play Again.
 
 ### Audio (ElevenLabs)
