@@ -252,6 +252,7 @@ namespace TowerDefense.EditorTools
                         // Spin about the grip's centre rather than the handle's end.
                         visual.transform.localPosition = -spin.transform.InverseTransformPoint(ModelBounds(visual).center);
                     }
+                    spin.transform.localScale = Vector3.one * 1.4f; // reads at game distance
                     serialized.FindProperty("spinner").objectReferenceValue = spin.transform;
                     serialized.FindProperty("spinAxis").vector3Value = Vector3.right;
                     serialized.FindProperty("spinSpeed").floatValue = 1080f;

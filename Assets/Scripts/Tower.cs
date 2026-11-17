@@ -222,6 +222,7 @@ namespace TowerDefense
                 Slow = Slow,
                 SlowDuration = SlowDuration,
                 Tint = Signature,
+                Tier = Mathf.Max(tiers[0], tiers[1]),
             });
         }
 

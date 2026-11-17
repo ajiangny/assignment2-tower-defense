@@ -82,6 +82,52 @@ namespace TowerDefense
             go.SetActive(true);
         }
 
+        /// <summary>
+        /// A halo that rides on a projectile: one soft glowing particle held in place, plus a stream of sparks
+        /// left behind in world space when sparkRate is above zero. Both die with the projectile.
+        /// </summary>
+        public static void ProjectileGlow(Transform parent, Color color, float size, float sparkRate)
+        {
+            ParticleSystem halo = Create("Upgrade Halo", parent.position, parent, out GameObject haloObject);
+            ParticleSystem.MainModule main = halo.main;
+            main.loop = true;
+            main.duration = 1f;
+            main.startLifetime = 30f;
+            main.startSpeed = 0f;
+            main.startSize = size;
+            main.startColor = new Color(color.r, color.g, color.b, 0.75f);
+            main.simulationSpace = ParticleSystemSimulationSpace.Local;
+            main.stopAction = ParticleSystemStopAction.None;
+            main.maxParticles = 1;
+            ParticleSystem.ShapeModule haloShape = halo.shape;
+            haloShape.enabled = false;
+            ParticleSystem.EmissionModule haloEmission = halo.emission;
+            haloEmission.rateOverTime = 0f;
+            haloEmission.SetBursts(new[] { new ParticleSystem.Burst(0f, 1) });
+            halo.GetComponent<ParticleSystemRenderer>().sharedMaterial = Additive;
+            haloObject.SetActive(true);
+
+            if (sparkRate <= 0f) return;
+            ParticleSystem sparks = Create("Upgrade Sparks", parent.position, parent, out GameObject sparkObject);
+            ParticleSystem.MainModule sparkMain = sparks.main;
+            sparkMain.loop = true;
+            sparkMain.duration = 1f;
+            sparkMain.startLifetime = new ParticleSystem.MinMaxCurve(0.2f, 0.4f);
+            sparkMain.startSpeed = new ParticleSystem.MinMaxCurve(0.2f, 1.2f);
+            sparkMain.startSize = new ParticleSystem.MinMaxCurve(size * 0.15f, size * 0.3f);
+            sparkMain.startColor = color;
+            sparkMain.stopAction = ParticleSystemStopAction.None;
+            sparkMain.maxParticles = 80;
+            ParticleSystem.ShapeModule sparkShape = sparks.shape;
+            sparkShape.shapeType = ParticleSystemShapeType.Sphere;
+            sparkShape.radius = size * 0.25f;
+            ParticleSystem.EmissionModule sparkEmission = sparks.emission;
+            sparkEmission.rateOverTime = sparkRate;
+            FadeAndShrink(sparks);
+            sparks.GetComponent<ParticleSystemRenderer>().sharedMaterial = Additive;
+            sparkObject.SetActive(true);
+        }
+
         /// <summary>A looping swirl of motes around a transform, for a tier-3 tower.</summary>
         public static ParticleSystem Aura(Transform parent, Color color, float radius)
         {

@@ -12,6 +12,8 @@ namespace TowerDefense
         public float SlowDuration;
         /// <summary>Upgrade path colour for the trail and impact; clear keeps the projectile's own colour.</summary>
         public Color Tint;
+        /// <summary>Highest upgrade tier on the tower (0-3). Each tier makes the shot bigger and flashier.</summary>
+        public int Tier;
     }
 
     public enum ImpactStyle { Splinters, Sparks, Arcane }
@@ -63,6 +65,7 @@ namespace TowerDefense
             }
 
             if (info.Tint.a > 0f) ApplyTint(info.Tint);
+            if (info.Tier > 0) ApplyTierLook(info.Tier, info.Tint.a > 0f ? info.Tint : impactColor);
             Destroy(gameObject, lifetime);
         }
 
@@ -86,6 +89,42 @@ namespace TowerDefense
                 block.SetColor(BaseColorId, tint);
                 block.SetColor(EmissionColorId, tint * 3f);
                 r.SetPropertyBlock(block);
+            }
+        }
+
+        /// <summary>
+        /// Upgraded shots read at a glance: per tier the model grows and the trail widens and lengthens;
+        /// every upgraded shot wears a glowing halo in the path colour; tier 2+ sheds sparks and casts light.
+        /// </summary>
+        private void ApplyTierLook(int tier, Color color)
+        {
+            Transform model = spinner != null ? spinner : transform.Find("Visual");
+            if (model == null) model = transform.Find("Core");
+            if (model != null) model.localScale *= 1f + 0.18f * tier;
+
+            if (trail != null)
+            {
+                trail.widthMultiplier *= 1f + 0.45f * tier;
+                trail.time *= 1f + 0.3f * tier;
+            }
+
+            float size = (own is SphereCollider sphere ? sphere.radius * 2f : 0.4f) + 0.35f + 0.25f * tier;
+            Vfx.ProjectileGlow(transform, color, size, tier >= 2 ? 25f * tier : 0f);
+
+            if (tier >= 2 && glow == null)
+            {
+                Light light = new GameObject("Upgrade Light").AddComponent<Light>();
+                light.transform.SetParent(transform, false);
+                light.type = LightType.Point;
+                light.color = color;
+                light.range = 2.5f + tier;
+                light.intensity = 1.5f * tier;
+                light.shadows = LightShadows.None;
+            }
+            else if (glow != null)
+            {
+                glow.intensity *= 1f + 0.3f * tier;
+                glow.range *= 1f + 0.2f * tier;
             }
         }
 
@@ -145,6 +184,13 @@ namespace TowerDefense
 
         private void PlayImpact(Vector3 point, float strength)
         {
+            // Upgraded shots hit harder on screen too: more particles, and a coloured flash and shockwave at tier 3.
+            strength *= 1f + 0.4f * shot.Tier;
+            if (shot.Tier >= 1 && impactStyle != ImpactStyle.Arcane)
+                Vfx.Flash(point, impactColor, 0.6f + 0.35f * shot.Tier);
+            if (shot.Tier >= TowerStats.MaxTier && strength >= 1f && impactStyle != ImpactStyle.Arcane)
+                Vfx.Ring(point, impactColor, 1.6f, 0.3f);
+
             switch (impactStyle)
             {
                 case ImpactStyle.Splinters:
