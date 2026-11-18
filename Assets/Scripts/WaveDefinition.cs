@@ -17,5 +17,9 @@ namespace TowerDefense
 
         public Group[] groups;
         [Min(0)] public int completionGold = 50;
+        [Tooltip("Multiplies every zombie's HP in this wave, so later waves are tougher. Gold per kill is unchanged.")]
+        [Min(0.1f)] public float hpMultiplier = 1f;
+        [Tooltip("Enemies with at least this base HP (the boss) ignore the wave's HP multiplier.")]
+        [Min(0f)] public float scalingCap = 300f;
     }
 }

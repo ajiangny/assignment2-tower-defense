@@ -38,7 +38,7 @@ MonoBehaviour:
       slowDuration: 0
     - name: Fireball
       description: +6 damage.
-      cost: 340
+      cost: 390
       damageBonus: 6
       rateMultiplier: 1
       rangeBonus: 0
@@ -50,7 +50,7 @@ MonoBehaviour:
       slowDuration: 0
     - name: Meteor
       description: +14 damage, +1.5 m splash.
-      cost: 850
+      cost: 1100
       damageBonus: 14
       rateMultiplier: 1
       rangeBonus: 0
@@ -64,7 +64,7 @@ MonoBehaviour:
     color: {r: 0.5, g: 0.86, b: 1, a: 1}
     tiers:
     - name: Chill
-      description: Hits slow zombies by 30% for 1.5 s.
+      description: Hits slow zombies by 25% for 1.2 s.
       cost: 150
       damageBonus: 0
       rateMultiplier: 1
@@ -73,11 +73,11 @@ MonoBehaviour:
       projectileSpeedMultiplier: 1
       extraShots: 0
       pierce: 0
-      slow: 0.3
-      slowDuration: 1.5
+      slow: 0.25
+      slowDuration: 1.2
     - name: Quick Cast
       description: Casts 60% faster.
-      cost: 300
+      cost: 345
       damageBonus: 0
       rateMultiplier: 1.6
       rangeBonus: 0
@@ -88,8 +88,8 @@ MonoBehaviour:
       slow: 0
       slowDuration: 0
     - name: Blizzard
-      description: Slows by 55% for 2.5 s, casts faster, +1 m splash.
-      cost: 750
+      description: Slows by 40% for 2 s, casts faster, +1 m splash.
+      cost: 1000
       damageBonus: 0
       rateMultiplier: 1.4
       rangeBonus: 0
@@ -97,6 +97,6 @@ MonoBehaviour:
       projectileSpeedMultiplier: 1
       extraShots: 0
       pierce: 0
-      slow: 0.55
-      slowDuration: 2.5
+      slow: 0.4
+      slowDuration: 2
   fireSound: {fileID: 8300000, guid: 870b572c67fd1407ea013115947a6f5c, type: 3}

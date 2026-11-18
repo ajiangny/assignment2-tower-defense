@@ -14,9 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TowerDefense.EnemyStats
   displayName: Zombie King
   speed: 1.2
-  maxHp: 600
+  maxHp: 900
   armor: 0
   goldReward: 200
+  slowResistance: 0.6
   splitInto: {fileID: 0}
   splitCount: 0
   voice:

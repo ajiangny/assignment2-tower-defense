@@ -38,7 +38,7 @@ MonoBehaviour:
       slowDuration: 0
     - name: Piercing Shot
       description: Arrows pass through 2 zombies and fly faster.
-      cost: 280
+      cost: 320
       damageBonus: 0
       rateMultiplier: 1
       rangeBonus: 0
@@ -50,7 +50,7 @@ MonoBehaviour:
       slowDuration: 0
     - name: Deadeye
       description: +12 damage, +2 pierce, +4 range.
-      cost: 750
+      cost: 1000
       damageBonus: 12
       rateMultiplier: 1
       rangeBonus: 4
@@ -77,7 +77,7 @@ MonoBehaviour:
       slowDuration: 0
     - name: Double Nock
       description: Looses a second arrow at the next zombie.
-      cost: 300
+      cost: 345
       damageBonus: 0
       rateMultiplier: 1
       rangeBonus: 0
@@ -89,7 +89,7 @@ MonoBehaviour:
       slowDuration: 0
     - name: Arrow Rain
       description: Two more arrows per volley, 50% faster.
-      cost: 720
+      cost: 975
       damageBonus: 0
       rateMultiplier: 1.5
       rangeBonus: 0

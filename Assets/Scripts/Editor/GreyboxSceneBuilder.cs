@@ -53,6 +53,8 @@ namespace TowerDefense.EditorTools
             new HandProp("HeroL10", "HeroSword", "RightHand", new Vector3(55f, 0f, 0f), Vector3.zero),
         };
         private const int WaveCount = 20;
+        private const float HpGrowthLinear = 0.06f;
+        private const float HpGrowthCurve = 0.007f;
 
         // The road's corners, from the graveyard (off-screen left) to the town gate (right).
         // Corners are rounded by RoundCorners, so zombies walk smooth bends.
@@ -102,7 +104,7 @@ namespace TowerDefense.EditorTools
             Enemy clubber = BuildEnemy("Clubber", 2f, 25f, 0f, 12, 1.4f, new Color(0.3f, 0.45f, 0.2f), null, 0);
             Enemy bloater = BuildEnemy("Plague Bloater", 2f, 15f, 0f, 8, 1.5f, new Color(0.6f, 0.55f, 0.15f), runner, 3);
             Enemy revenant = BuildEnemy("Armored Revenant", 2.2f, 30f, 2f, 15, 1.2f, new Color(0.5f, 0.35f, 0.3f), null, 0);
-            Enemy king = BuildEnemy("Zombie King", 1.2f, 600f, 0f, 200, 2.5f, new Color(0.5f, 0.1f, 0.5f), null, 0);
+            Enemy king = BuildEnemy("Zombie King", 1.2f, 900f, 0f, 200, 2.5f, new Color(0.5f, 0.1f, 0.5f), null, 0);
 
             BuildHeroPrefab();
 
@@ -191,18 +193,31 @@ namespace TowerDefense.EditorTools
             for (int n = 1; n <= WaveCount; n++)
             {
                 List<WaveDefinition.Group> groups = new List<WaveDefinition.Group>();
-                float interval = Mathf.Lerp(1.4f, 0.6f, (n - 1f) / (WaveCount - 1f));
+                float interval = Mathf.Lerp(1.4f, 0.5f, (n - 1f) / (WaveCount - 1f));
 
+                // Waves 1-7 are the original gentle opening; the pressure builds from wave 8.
                 groups.Add(Group(shambler, 4 + n, interval, 0f));
                 if (n >= 3) groups.Add(Group(runner, n - 1, interval, 3f));
-                if (n >= 5) groups.Add(Group(clubber, n / 3, interval * 2f, 6f));
+                if (n >= 5) groups.Add(Group(clubber, n < 12 ? n / 3 : n / 2, interval * 2f, 6f));
                 if (n >= 8) groups.Add(Group(bloater, (n - 6) / 2, interval * 2f, 8f));
                 if (n >= 11) groups.Add(Group(revenant, (n - 8) / 2, interval * 2f, 10f));
-                if (n == WaveCount) groups.Add(Group(king, 1, 1f, 12f));
+                // Escort waves: a tight block of armoured Revenants tests armour and slow resistance.
+                if (n == 15) groups.Add(Group(revenant, 5, 0.7f, 14f));
+                if (n == WaveCount)
+                {
+                    groups.Add(Group(king, 1, 1f, 12f));
+                    groups.Add(Group(revenant, 6, 0.8f, 13f));
+                }
 
                 WaveDefinition wave = GetOrCreateAsset<WaveDefinition>($"{WaveDir}/Wave{n:00}.asset");
                 wave.groups = groups.ToArray();
-                wave.completionGold = 40 + n * 10;
+                // The bonus keeps growing so a wide build can keep upgrading; two maxed towers can't spend it.
+                wave.completionGold = n <= 8 ? 40 + n * 10 : 60 + n * 10;
+                // No scaling through wave 6, then a steepening ramp: x1.35 HP at wave 10, x2.1 at 15, x3.0 at 20.
+                // The King has fixed HP.
+                int late = Mathf.Max(0, n - 6);
+                wave.hpMultiplier = 1f + HpGrowthLinear * late + HpGrowthCurve * late * late;
+                wave.scalingCap = 300f;
                 EditorUtility.SetDirty(wave);
                 waves[n - 1] = wave;
             }
@@ -436,6 +451,12 @@ namespace TowerDefense.EditorTools
             return material;
         }
 
+        /// <summary>Fraction of a Frost slow each heavy zombie shrugs off; the rest take the full slow.</summary>
+        private static readonly Dictionary<string, float> SlowResistance = new Dictionary<string, float>
+        {
+            { "Clubber", 0.3f }, { "ArmoredRevenant", 0.5f }, { "ZombieKing", 0.6f },
+        };
+
         private static Enemy BuildEnemy(string displayName, float speed, float hp, float armor, int gold, float size, Color color, Enemy splitInto, int splitCount)
         {
             string assetName = displayName.Replace(" ", "");
@@ -447,6 +468,7 @@ namespace TowerDefense.EditorTools
             stats.goldReward = gold;
             stats.splitInto = splitInto;
             stats.splitCount = splitCount;
+            stats.slowResistance = SlowResistance.TryGetValue(assetName, out float resist) ? resist : 0f;
             stats.voice = assetName == "Runner" ? Sounds("Zombies/Shriek1", "Zombies/Shriek2") : Sounds("Zombies/Groan1", "Zombies/Groan2");
             stats.hurt = Sounds("Zombies/Hurt1", "Zombies/Hurt2");
             stats.death = Sounds("Zombies/Death1", "Zombies/Death2");
@@ -889,34 +911,34 @@ namespace TowerDefense.EditorTools
                 {
                     Route("Berserker", new Color(0.97f, 0.42f, 0.34f),
                         Tier("Whetted Axes", 110, "Sharper edges. +1 damage.", damage: 1f),
-                        Tier("Battle Frenzy", 240, "Throws 50% faster.", rate: 1.5f),
-                        Tier("Whirlwind Warlord", 650, "+3 damage, 50% faster, +2 range.", damage: 3f, rate: 1.5f, range: 2f)),
+                        Tier("Battle Frenzy", 275, "Throws 50% faster.", rate: 1.5f),
+                        Tier("Whirlwind Warlord", 875, "+3 damage, 35% faster, +2 range.", damage: 3f, rate: 1.35f, range: 2f)),
                     Route("Axe Master", new Color(0.98f, 0.8f, 0.32f),
                         Tier("Long Arm", 100, "+2.5 range.", range: 2.5f),
-                        Tier("Twin Throw", 260, "Throws a second axe at the next zombie.", extraShots: 1),
-                        Tier("Axe Storm", 700, "Two more axes, and every axe cuts through a zombie.", extraShots: 2, pierce: 1)),
+                        Tier("Twin Throw", 300, "Throws a second axe at the next zombie.", extraShots: 1),
+                        Tier("Axe Storm", 950, "A third axe, and every axe cuts through a zombie.", extraShots: 1, pierce: 1)),
                 },
                 ["ArcherTower"] = new[]
                 {
                     Route("Marksman", new Color(0.96f, 0.5f, 0.44f),
                         Tier("Broadheads", 150, "+3 damage.", damage: 3f),
-                        Tier("Piercing Shot", 280, "Arrows pass through 2 zombies and fly faster.", pierce: 2, speed: 1.2f),
-                        Tier("Deadeye", 750, "+12 damage, +2 pierce, +4 range.", damage: 12f, pierce: 2, range: 4f)),
+                        Tier("Piercing Shot", 320, "Arrows pass through 2 zombies and fly faster.", pierce: 2, speed: 1.2f),
+                        Tier("Deadeye", 1000, "+12 damage, +2 pierce, +4 range.", damage: 12f, pierce: 2, range: 4f)),
                     Route("Volley", new Color(0.62f, 0.9f, 0.42f),
                         Tier("Quick Draw", 140, "Shoots 40% faster.", rate: 1.4f),
-                        Tier("Double Nock", 300, "Looses a second arrow at the next zombie.", extraShots: 1),
-                        Tier("Arrow Rain", 720, "Two more arrows per volley, 50% faster.", extraShots: 2, rate: 1.5f)),
+                        Tier("Double Nock", 345, "Looses a second arrow at the next zombie.", extraShots: 1),
+                        Tier("Arrow Rain", 975, "Two more arrows per volley, 50% faster.", extraShots: 2, rate: 1.5f)),
                 },
                 ["MageSpire"] = new[]
                 {
                     Route("Pyromancer", new Color(1f, 0.6f, 0.26f),
                         Tier("Wider Blast", 160, "+1 m splash.", splash: 1f),
-                        Tier("Fireball", 340, "+6 damage.", damage: 6f),
-                        Tier("Meteor", 850, "+14 damage, +1.5 m splash.", damage: 14f, splash: 1.5f)),
+                        Tier("Fireball", 390, "+6 damage.", damage: 6f),
+                        Tier("Meteor", 1100, "+14 damage, +1.5 m splash.", damage: 14f, splash: 1.5f)),
                     Route("Frost", new Color(0.5f, 0.86f, 1f),
-                        Tier("Chill", 150, "Hits slow zombies by 30% for 1.5 s.", slow: 0.3f, slowDuration: 1.5f),
-                        Tier("Quick Cast", 300, "Casts 60% faster.", rate: 1.6f),
-                        Tier("Blizzard", 750, "Slows by 55% for 2.5 s, casts faster, +1 m splash.", slow: 0.55f, slowDuration: 2.5f, rate: 1.4f, splash: 1f)),
+                        Tier("Chill", 150, "Hits slow zombies by 25% for 1.2 s.", slow: 0.25f, slowDuration: 1.2f),
+                        Tier("Quick Cast", 345, "Casts 60% faster.", rate: 1.6f),
+                        Tier("Blizzard", 1000, "Slows by 40% for 2 s, casts faster, +1 m splash.", slow: 0.4f, slowDuration: 2f, rate: 1.4f, splash: 1f)),
                 },
             };
             foreach (Tower tower in towers)

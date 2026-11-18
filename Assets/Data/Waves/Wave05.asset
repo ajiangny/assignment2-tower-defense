@@ -15,14 +15,16 @@ MonoBehaviour:
   groups:
   - enemy: {fileID: 838753843823191975, guid: e3b0e244a767b417085220a54427d1ea, type: 3}
     count: 9
-    interval: 1.231579
+    interval: 1.2105263
     startDelay: 0
   - enemy: {fileID: 1572071835245449722, guid: faaa12124a07f4f609374201084f4b33, type: 3}
     count: 4
-    interval: 1.231579
+    interval: 1.2105263
     startDelay: 3
   - enemy: {fileID: 2773453070323937445, guid: cc0ca3fd2d9ec49f9986f935f9f6cae1, type: 3}
     count: 1
-    interval: 2.463158
+    interval: 2.4210527
     startDelay: 6
   completionGold: 90
+  hpMultiplier: 1
+  scalingCap: 300

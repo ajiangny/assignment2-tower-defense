@@ -11,6 +11,8 @@ namespace TowerDefense
         [Tooltip("Flat reduction per hit. A hit always deals at least 1 damage.")]
         [Min(0f)] public float armor;
         [Min(0)] public int goldReward = 5;
+        [Tooltip("Fraction of any slow this enemy shrugs off (0 = full slow, 1 = immune).")]
+        [Range(0f, 1f)] public float slowResistance;
         [Tooltip("Spawned where this enemy dies, for example Runners from a Bloater.")]
         public Enemy splitInto;
         [Min(0)] public int splitCount;

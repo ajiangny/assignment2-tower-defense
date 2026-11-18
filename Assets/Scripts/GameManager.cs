@@ -44,7 +44,14 @@ namespace TowerDefense
             Time.timeScale = FastForward ? 2f : 1f;
         }
 
-        public void GameOver() => Finish(GameResult.Lost);
+        /// <summary>Display name of the zombie that reached the gate, for the end screen.</summary>
+        public string LeakedBy { get; private set; }
+
+        public void GameOver(string leakedBy = null)
+        {
+            if (!IsFinished) LeakedBy = leakedBy;
+            Finish(GameResult.Lost);
+        }
 
         public void Victory() => Finish(GameResult.Won);
 

@@ -38,7 +38,7 @@ MonoBehaviour:
       slowDuration: 0
     - name: Battle Frenzy
       description: Throws 50% faster.
-      cost: 240
+      cost: 275
       damageBonus: 0
       rateMultiplier: 1.5
       rangeBonus: 0
@@ -49,10 +49,10 @@ MonoBehaviour:
       slow: 0
       slowDuration: 0
     - name: Whirlwind Warlord
-      description: +3 damage, 50% faster, +2 range.
-      cost: 650
+      description: +3 damage, 35% faster, +2 range.
+      cost: 875
       damageBonus: 3
-      rateMultiplier: 1.5
+      rateMultiplier: 1.35
       rangeBonus: 2
       splashBonus: 0
       projectileSpeedMultiplier: 1
@@ -77,7 +77,7 @@ MonoBehaviour:
       slowDuration: 0
     - name: Twin Throw
       description: Throws a second axe at the next zombie.
-      cost: 260
+      cost: 300
       damageBonus: 0
       rateMultiplier: 1
       rangeBonus: 0
@@ -88,14 +88,14 @@ MonoBehaviour:
       slow: 0
       slowDuration: 0
     - name: Axe Storm
-      description: Two more axes, and every axe cuts through a zombie.
-      cost: 700
+      description: A third axe, and every axe cuts through a zombie.
+      cost: 950
       damageBonus: 0
       rateMultiplier: 1
       rangeBonus: 0
       splashBonus: 0
       projectileSpeedMultiplier: 1
-      extraShots: 2
+      extraShots: 1
       pierce: 1
       slow: 0
       slowDuration: 0

@@ -40,17 +40,18 @@ namespace TowerDefense
             WaveInProgress = true;
             groupsSpawning = wave.groups.Length;
             foreach (WaveDefinition.Group group in wave.groups)
-                StartCoroutine(SpawnGroup(group));
+                StartCoroutine(SpawnGroup(wave, group));
             return true;
         }
 
-        private IEnumerator SpawnGroup(WaveDefinition.Group group)
+        private IEnumerator SpawnGroup(WaveDefinition wave, WaveDefinition.Group group)
         {
             yield return new WaitForSeconds(group.startDelay);
             for (int i = 0; i < group.count; i++)
             {
                 Enemy enemy = Instantiate(group.enemy);
                 enemy.Begin(path);
+                if (enemy.Stats.maxHp < wave.scalingCap) enemy.SetHealthMultiplier(wave.hpMultiplier);
                 if (i < group.count - 1) yield return new WaitForSeconds(group.interval);
             }
             groupsSpawning--;

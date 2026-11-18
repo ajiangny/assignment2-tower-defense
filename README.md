@@ -118,12 +118,12 @@ As in Bloons TD 6, clicking a tower opens its upgrade panel. Each tower has **tw
 
 | Tower | Path | Tier 1 | Tier 2 | Tier 3 |
 |---|---|---|---|---|
-| Knight | **Berserker** (red) | Whetted Axes, 110: +1 damage | Battle Frenzy, 240: throws 50% faster | Whirlwind Warlord, 650: +3 damage, 50% faster, +2 range |
-| Knight | **Axe Master** (gold) | Long Arm, 100: +2.5 range | Twin Throw, 260: a second axe at the next zombie | Axe Storm, 700: two more axes, each cuts through a zombie |
-| Archer | **Marksman** (crimson) | Broadheads, 150: +3 damage | Piercing Shot, 280: arrows pass through 2 zombies, fly faster | Deadeye, 750: +12 damage, +2 pierce, +4 range |
-| Archer | **Volley** (green) | Quick Draw, 140: 40% faster | Double Nock, 300: a second arrow | Arrow Rain, 720: two more arrows, 50% faster |
-| Mage | **Pyromancer** (orange) | Wider Blast, 160: +1 m splash | Fireball, 340: +6 damage | Meteor, 850: +14 damage, +1.5 m splash |
-| Mage | **Frost** (blue) | Chill, 150: hits slow zombies 30% for 1.5 s | Quick Cast, 300: 60% faster | Blizzard, 750: 55% slow for 2.5 s, faster, +1 m splash |
+| Knight | **Berserker** (red) | Whetted Axes, 110: +1 damage | Battle Frenzy, 275: throws 50% faster | Whirlwind Warlord, 875: +3 damage, 35% faster, +2 range |
+| Knight | **Axe Master** (gold) | Long Arm, 100: +2.5 range | Twin Throw, 300: a second axe at the next zombie | Axe Storm, 950: a third axe, and each cuts through a zombie |
+| Archer | **Marksman** (crimson) | Broadheads, 150: +3 damage | Piercing Shot, 320: arrows pass through 2 zombies, fly faster | Deadeye, 1000: +12 damage, +2 pierce, +4 range |
+| Archer | **Volley** (green) | Quick Draw, 140: 40% faster | Double Nock, 345: a second arrow | Arrow Rain, 975: two more arrows, 50% faster |
+| Mage | **Pyromancer** (orange) | Wider Blast, 160: +1 m splash | Fireball, 390: +6 damage | Meteor, 1100: +14 damage, +1.5 m splash |
+| Mage | **Frost** (blue) | Chill, 150: hits slow zombies 25% for 1.2 s | Quick Cast, 345: 60% faster | Blizzard, 1000: 40% slow for 2 s, faster, +1 m splash |
 
 **Targeting.** Also as in Bloons, each tower has a targeting mode, shown in the upgrade panel and changed with **Tab** or its arrows:
 
@@ -134,18 +134,20 @@ As in Bloons TD 6, clicking a tower opens its upgrade panel. Each tower has **tw
 | **Strong** | the zombie with the most HP left (ties: furthest along) | Archers on Clubbers, Revenants and the Zombie King |
 | **Close** | the zombie nearest the tower | short-range Knights in a bend |
 
-Extra shots go to the next zombies in the same order (for First, the next closest to the gate), or fan out if only one is in range; each is aimed with the same predictive intercept. Pierce lets a shot carry on through a zombie at full speed. Slowed zombies walk (and animate) slower, and the towers' predictive aim uses their slowed velocity. The Zombie King only takes half the slow. The paths are data on each `TowerStats` asset (`UpgradePath`, `UpgradeTier`), so a new upgrade is a new entry, not new code.
+Extra shots go to the next zombies in the same order (for First, the next closest to the gate), or fan out if only one is in range; each is aimed with the same predictive intercept. Pierce lets a shot carry on through a zombie at full speed. Slowed zombies walk (and animate) slower, and the towers' predictive aim uses their slowed velocity. Heavy zombies shrug off part of any slow (`EnemyStats.slowResistance`): Clubbers 30%, Armored Revenants 50%, the Zombie King 60%. The paths are data on each `TowerStats` asset (`UpgradePath`, `UpgradeTier`), so a new upgrade is a new entry, not new code.
 
 ### Zombies
 
-| Zombie | Speed | HP | Special | Gold |
+| Zombie | Speed | Base HP | Special | Gold |
 |---|---|---|---|---|
 | **Shambler** | 2.5 | 8 | The basic peasant zombie | 5 |
 | **Runner** | 5.5 | 4 | Fast and fragile, sprints low to the ground | 3 |
-| **Clubber** | 2 | 25 | A hulking brute with a spiked club and arrows in his back | 12 |
+| **Clubber** | 2 | 25 | A hulking brute with a spiked club and arrows in his back; resists 30% of slows | 12 |
 | **Plague Bloater** | 2 | 15 | Bursts into three Runners when killed | 8 |
-| **Armored Revenant** | 2.2 | 30 | A rusted knight with sword and shield; every hit does 2 less damage (minimum 1) | 15 |
-| **Zombie King** | 1.2 | 600 | The wave 20 boss, with a crown and skull scepter; roars when he appears | 200 |
+| **Armored Revenant** | 2.2 | 30 | A rusted knight with sword and shield; every hit does 2 less damage (minimum 1); resists 50% of slows | 15 |
+| **Zombie King** | 1.2 | 900 | The wave 20 boss, with a crown and skull scepter; roars when he appears; resists 60% of slows; arrives with an escort of six Revenants | 200 |
+
+Base HP is for waves 1–6. From wave 7 every zombie's HP is multiplied by the wave's `hpMultiplier`, which ramps up: ×1.35 at wave 10, ×2.1 at wave 15 and ×3.0 at wave 20. The King's HP doesn't scale, and gold per kill stays the same, so tougher zombies don't mean more money.
 
 **Health bars** (`HealthBar`): a small bar floats over each zombie and faces the camera. It stays hidden until the zombie is first hit, so a fresh horde stays uncluttered. It shades from green through yellow to red, a pale chip trails behind it to show the damage just taken, and its backing turns frosty blue while the zombie is slowed. The Zombie King's bar is wider and always shown.
 
@@ -156,11 +158,11 @@ Every zombie shares one look: chibi proportions, green skin, glowing yellow eyes
 There are 20 waves, generated by the builder into `Assets/Data/Waves/` as `WaveDefinition` assets. Each wave is a set of groups (zombie type, count, spawn interval and start delay):
 
 - Every wave has 4 + *n* Shamblers.
-- Runners join from wave 3, Clubbers from wave 5, Plague Bloaters from wave 8 and Armored Revenants from wave 11, in growing numbers.
-- Zombies spawn closer together as the waves go on (1.4 s apart at first, 0.6 s by the end).
-- Wave 20 adds the Zombie King.
+- Runners join from wave 3, Clubbers from wave 5 (more of them from wave 12), Plague Bloaters from wave 8 and Armored Revenants from wave 11, in growing numbers.
+- Wave 15 adds a tight block of five Revenants; wave 20 brings the Zombie King with six more.
+- Zombies spawn closer together as the waves go on (1.4 s apart at first, 0.5 s by the end), and from wave 7 they get tougher every wave (see [Zombies](#zombies)).
 
-The player starts with 300 gold, earns gold for each kill and 40 + 10 × *n* for finishing wave *n*, and can have at most 10 towers. The next wave starts only when the player presses Start Wave, so there's always time to build, unless auto-start is on, in which case it follows 2.5 s after a wave is cleared (`WaveSpawner.AutoStart`). 2x speed and restart are always available.
+The player starts with 300 gold, earns gold for each kill and a bonus for finishing each wave (40 + 10 × *n* through wave 8, then 60 + 10 × *n*), and can have at most 10 towers. The next wave starts only when the player presses Start Wave, so there's always time to build, unless auto-start is on, in which case it follows 2.5 s after a wave is cleared (`WaveSpawner.AutoStart`). 2x speed and restart are always available.
 
 ### Art & animation
 
@@ -182,7 +184,7 @@ All of the HUD is built in code (`Hud.cs`) with rounded panels, a dark slate and
 - **Upgrade panel:** opens on the right when a tower is clicked, with its live stats, its targeting mode, both paths (tier pips in the path colour, the next upgrade's name, effect and price, or LOCKED / MAXED) and a Sell button. The selected tower shows its range ring in gold.
 - **Wave controls:** one panel in the bottom-right, level with the tower cards: two switch rows (2× Speed, Auto-start, each with its hotkey) beside a gold Start Wave button that shows how many zombies are left during a wave, or the auto-start countdown between waves.
 - **Wave banner:** "WAVE 1 — THE DEAD ARE COMING" at the start, and a red "THE ZOMBIE KING RISES" warning on the last wave, on a dark band between gold rules so it stays readable over any part of the map.
-- **End screen:** THE TOWN IS SAVED (gold) or THE TOWN HAS FALLEN (red), with a matching accent bar, waves survived, zombies destroyed and Play Again.
+- **End screen:** THE TOWN IS SAVED (gold) or THE TOWN HAS FALLEN (red), with a matching accent bar, which zombie got through ("A Runner reached the town gate."), waves survived, zombies destroyed and Play Again.
 
 ### Audio (ElevenLabs)
 
@@ -203,7 +205,9 @@ Sounds are set on the data, not in code: `EnemyStats` (voice, hurt, death, spawn
 
 - **Towers trade off against each other.** The Knight deals the most damage per second for its price (4 / s) but only reaches 9 m, so it belongs in the bends; the Archer reaches 20 m and its arrows fly at 35, so it rarely misses even fast Runners; the Mage's 8-damage splash is the answer to groups and Bloater bursts.
 - **Each zombie tests something.** Runners punish slow projectiles (predictive aim matters most against them), Clubbers soak damage, Bloaters turn one kill into three fast zombies near the end of the road, and the Revenant's armour makes the Knight's 2-damage axes nearly useless against him (1 damage per hit) while barely slowing the Archer and Mage.
-- **The curve:** waves add a new type every few waves and spawn faster, and the King's 600 HP needs a mix of all three towers. Finishing a wave pays more as the game goes on (60 gold after wave 2, 240 after wave 20), so the player can keep building.
+- **The curve:** waves 1–6 are a gentle opening at base HP. From wave 7 zombie HP ramps up steeply (×3 by wave 20), so the towers have to keep pace with upgrades. The King (900 HP, resisting most of the slow) and his escort need a mix of all three towers.
+- **No two-tower win.** An early playtest showed one maxed Knight plus one maxed Frost Mage could clear all 20 waves. The fix: zombie HP scales from wave 7; tier 2 and 3 upgrades cost about 15% and 35% more; Frost's slow is weaker (25% then 40%) and heavy zombies resist it; Axe Storm adds one axe instead of two. Wave bonuses keep growing (260 after wave 20), which rewards building wide rather than stacking two towers.
+- **Tested with simulated games** (a scripted player at 6x speed following a fixed build order): the two-tower Knight + Frost Mage build now loses on wave 8. A 10-tower mixed build wins wave 20 with only one tier-3 upgrade, so a player who spends well has some margin.
 - **One leak loses**, as the assignment requires, so the game gives the player control: waves start only when they're ready, and the tower cap (10) is a hard limit separate from gold, so space and placement matter as much as money.
 
 All of these values are on the ScriptableObjects in `Assets/Data/` and on `TowerPlacer` and `Economy`; the wave formulas are in `GreyboxSceneBuilder.BuildWaves`.

@@ -21,6 +21,7 @@ namespace TowerDefense
         private EnemyPath path;
         private int nextWaypoint;
         private float hp;
+        private float healthMultiplier = 1f;
         private float holdTime;
         private float slow;
         private float slowTimer;
@@ -34,14 +35,24 @@ namespace TowerDefense
         public EnemyStats Stats => stats;
         public float Hp => hp;
 
+        /// <summary>Full HP: the base stat times the wave's HP multiplier.</summary>
+        public float MaxHp => stats.maxHp * healthMultiplier;
+
+        /// <summary>Scales this enemy's HP for its wave. Call right after spawning, before it takes damage.</summary>
+        public void SetHealthMultiplier(float multiplier)
+        {
+            healthMultiplier = Mathf.Max(0.1f, multiplier);
+            hp = MaxHp;
+        }
+
         /// <summary>Speed after any slow from a frost upgrade.</summary>
         public float CurrentSpeed => stats.speed * (1f - slow);
         public bool IsSlowed => slowTimer > 0f;
 
-        /// <summary>Slows by a fraction for a while. The strongest current slow wins; the boss shrugs off half of it.</summary>
+        /// <summary>Slows by a fraction for a while. The strongest current slow wins; heavy zombies resist part of it.</summary>
         public void ApplySlow(float amount, float duration)
         {
-            if (stats.maxHp >= 300f) amount *= 0.5f;
+            amount *= 1f - stats.slowResistance;
             if (amount >= slow || slowTimer <= 0f) slow = amount;
             slowTimer = Mathf.Max(slowTimer, duration);
         }
@@ -83,6 +94,7 @@ namespace TowerDefense
         private void BeginFrom(Enemy parent, float delay)
         {
             path = parent.path;
+            SetHealthMultiplier(parent.healthMultiplier);
             nextWaypoint = parent.nextWaypoint;
             PathProgress = parent.PathProgress;
             holdTime = delay;
@@ -155,7 +167,7 @@ namespace TowerDefense
 
             if (nextWaypoint >= path.Count)
             {
-                if (GameManager.Instance != null) GameManager.Instance.GameOver();
+                if (GameManager.Instance != null) GameManager.Instance.GameOver(stats.displayName);
                 Destroy(gameObject);
             }
         }

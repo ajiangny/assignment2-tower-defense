@@ -17,6 +17,7 @@ MonoBehaviour:
   maxHp: 25
   armor: 0
   goldReward: 12
+  slowResistance: 0.3
   splitInto: {fileID: 0}
   splitCount: 0
   voice:

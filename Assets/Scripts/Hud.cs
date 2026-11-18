@@ -600,7 +600,9 @@ namespace TowerDefense
             endTitle.text = won ? "THE TOWN IS SAVED" : "THE TOWN HAS FALLEN";
             endTitle.color = won ? Gold : Danger;
             endAccent.color = won ? Gold : Danger;
-            endDetail.text = won ? "Every wave of the dead was held back." : "A zombie reached the town gate.";
+            string leaker = string.IsNullOrEmpty(game.LeakedBy) ? "zombie" : game.LeakedBy;
+            string article = "AEIOU".IndexOf(char.ToUpperInvariant(leaker[0])) >= 0 ? "An" : "A";
+            endDetail.text = won ? "Every wave of the dead was held back." : $"{article} {leaker} reached the town gate.";
             int survived = won ? spawner.TotalWaves : Mathf.Max(0, spawner.CurrentWave - 1);
             endWaves.text = $"{survived}<size=60%><color=#9EA3AF> / {spawner.TotalWaves}</color></size>";
             endKills.text = game.Kills.ToString();

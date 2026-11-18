@@ -68,7 +68,7 @@ namespace TowerDefense
         private void LateUpdate()
         {
             if (bar == null) return;
-            float fraction = Mathf.Clamp01(enemy.Hp / Mathf.Max(1f, enemy.Stats.maxHp));
+            float fraction = Mathf.Clamp01(enemy.Hp / Mathf.Max(1f, enemy.MaxHp));
             if (fraction < 1f) shown = true;
             chipFraction = Mathf.MoveTowards(Mathf.Max(chipFraction, fraction), fraction, Time.deltaTime * 0.8f);
             Apply(fraction);

@@ -15,26 +15,32 @@ MonoBehaviour:
   groups:
   - enemy: {fileID: 838753843823191975, guid: e3b0e244a767b417085220a54427d1ea, type: 3}
     count: 24
-    interval: 0.6
+    interval: 0.5
     startDelay: 0
   - enemy: {fileID: 1572071835245449722, guid: faaa12124a07f4f609374201084f4b33, type: 3}
     count: 19
-    interval: 0.6
+    interval: 0.5
     startDelay: 3
   - enemy: {fileID: 2773453070323937445, guid: cc0ca3fd2d9ec49f9986f935f9f6cae1, type: 3}
-    count: 6
-    interval: 1.2
+    count: 10
+    interval: 1
     startDelay: 6
   - enemy: {fileID: 5376448802618995876, guid: bbab457df38ea444eb03beb8642b8802, type: 3}
     count: 7
-    interval: 1.2
+    interval: 1
     startDelay: 8
   - enemy: {fileID: 6727953597167758195, guid: dd6e66f660e4c444e9e1155ef1190892, type: 3}
     count: 6
-    interval: 1.2
+    interval: 1
     startDelay: 10
   - enemy: {fileID: 8077140147330558705, guid: 24050bc2881c74da0943934659e8dcb5, type: 3}
     count: 1
     interval: 1
     startDelay: 12
-  completionGold: 240
+  - enemy: {fileID: 6727953597167758195, guid: dd6e66f660e4c444e9e1155ef1190892, type: 3}
+    count: 6
+    interval: 0.8
+    startDelay: 13
+  completionGold: 260
+  hpMultiplier: 3.2120001
+  scalingCap: 300
